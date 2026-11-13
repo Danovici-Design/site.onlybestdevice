@@ -1046,6 +1046,12 @@ const tbiSubmitAlertAdmin: Renderer = ({
       intro: `Nu am reușit să creăm cererea de credit TBI pentru comanda <strong>#${escape(display)}</strong> și nu mai reîncercăm automat.`,
       outro: "Contactați clientul: poate relua comanda cu altă metodă de plată, sau cererea se face direct cu TBI.",
     },
+    late_after_cancel: {
+      subject: `[${BRAND}] TBI: comanda anulată #${display} a primit „${error ?? "status nou"}” de la TBI`,
+      heading: `Dosar TBI activ pe comandă anulată — #${display}`,
+      intro: `Comanda <strong>#${escape(display)}</strong> e anulată în magazin, dar TBI tocmai a trimis statusul de mai jos — dosarul de credit a mers mai departe după anulare. O comandă anulată nu mai poate fi reactivată, deci NU am capturat nimic.`,
+      outro: "Verificați dosarul în platforma TBI. Dacă e aprobat și livrați, înregistrați vânzarea direct în gestiune (comanda de pe site rămâne anulată). Dacă nu livrați, anulați dosarul la TBI ca să nu fie finanțat.",
+    },
     recovered: {
       subject: `[${BRAND}] TBI: cererea pentru comanda #${display} a plecat — trimiteți linkul clientului`,
       heading: `Cerere TBI creată — #${display}`,

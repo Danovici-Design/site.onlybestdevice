@@ -255,7 +255,7 @@ const saveTbi = async (container: any, orderId: string, tbi: Record<string, unkn
   await orderModule.updateOrders(orderId, { metadata: { tbi } })
 }
 
-type AlertKind = "failed" | "gave_up" | "uncertain" | "recovered"
+type AlertKind = "failed" | "gave_up" | "uncertain" | "recovered" | "late_after_cancel"
 
 type Alert = {
   kind: AlertKind
@@ -263,7 +263,7 @@ type Alert = {
   details: { error?: string; retriable?: boolean; attempts: number; redirect_url?: string }
 }
 
-const sendAlert = async (container: any, { kind, order, details }: Alert) => {
+export const sendTbiAlert = async (container: any, { kind, order, details }: Alert) => {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const to = process.env.ADMIN_ORDER_NOTIFICATION_EMAIL
   if (!to) {
@@ -304,7 +304,7 @@ export async function submitTbiApplication(
   const { result, alert } = await withTbiOrderLock(container, orderId, () =>
     submitLocked(container, orderId, source, attemptsThisCall, deps)
   )
-  if (alert) await sendAlert(container, alert)
+  if (alert) await sendTbiAlert(container, alert)
   return result
 }
 

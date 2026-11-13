@@ -8,7 +8,7 @@ import {
   Modules,
 } from '@medusajs/framework/utils'
 import { getTbiClient } from '../../../modules/tbi-pay/client'
-import { isTbiOrder } from '../../../lib/tbi/submit-application'
+import { isTbiOrder, sendTbiAlert } from '../../../lib/tbi/submit-application'
 
 /**
  * Callback-ul de statusuri TBI (ReturnToProvider). TBI trimite un POST cu
@@ -81,6 +81,13 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       'id',
       'display_id',
       'status',
+      'canceled_at',
+      'email',
+      'total',
+      'currency_code',
+      'shipping_address.first_name',
+      'shipping_address.last_name',
+      'shipping_address.phone',
       'metadata',
       'payment_collections.payments.id',
       'payment_collections.payments.captured_at',
@@ -113,7 +120,8 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
   }
 
   const orderModule = req.scope.resolve(Modules.ORDER)
-  const saveStatus = () =>
+  const receivedAt = new Date().toISOString()
+  const saveStatus = (extra: Record<string, any> = {}) =>
     // Doar cheia `tbi`: Medusa face merge pe primul nivel al metadata, iar
     // restul (ex. `emails`) poate fi scris în paralel de alți subscriberi.
     orderModule.updateOrders(order.id, {
@@ -122,10 +130,48 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
           ...(meta.tbi ?? {}),
           status: statusName,
           motiv: payload.motiv ?? meta.tbi?.motiv,
-          status_received_at: new Date().toISOString(),
+          status_received_at: receivedAt,
+          // Fiecare callback suprascrie `status`, deci fără istoric un
+          // „respins” urmat de „pending” dispare fără urmă (comanda #412).
+          history: [
+            ...(Array.isArray(meta.tbi?.history) ? meta.tbi.history : []),
+            { status: statusName, motiv: payload.motiv ?? null, at: receivedAt },
+          ].slice(-10),
+          ...extra,
         },
       },
     })
+
+  /**
+   * Dosarul a mers mai departe după ce comanda a fost anulată (#412: „respins”
+   * la 15:51, apoi „pending” și aprobare). Medusa nu reactivează o comandă
+   * anulată, iar captura pe o plată anulată ar arunca — TBI ar reîncerca la
+   * nesfârșit și nimeni n-ar afla. Consemnăm, alertăm o dată per status și
+   * răspundem 200; decizia (livrăm sau anulăm dosarul la TBI) e a omului.
+   */
+  if (order.status === 'canceled' || order.canceled_at) {
+    const alerted: string[] = Array.isArray(meta.tbi?.late_alerts)
+      ? meta.tbi.late_alerts
+      : []
+    const shouldAlert = statusName !== 'rejected' && !alerted.includes(statusName)
+    logger.error(
+      `[tbi] Callback „${statusName}” pentru comanda ANULATĂ #${displayId} — nu capturăm, verifică manual.`
+    )
+    await saveStatus(
+      shouldAlert ? { late_alerts: [...alerted, statusName] } : {}
+    )
+    if (shouldAlert) {
+      await sendTbiAlert(req.scope, {
+        kind: 'late_after_cancel',
+        order,
+        details: {
+          error: statusName === 'approved' ? 'aprobat' : 'în analiză',
+          attempts: Number(meta.tbi?.attempts ?? 0),
+        },
+      })
+    }
+    return res.json({ received: true, order_canceled: true })
+  }
 
   if (statusName === 'approved') {
     const payment = (order.payment_collections ?? [])

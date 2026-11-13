@@ -246,6 +246,14 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
           )}
         </div>
 
+        {state.derived.code === "canceled" ? (
+          <Text size="small" className="text-ui-fg-error">
+            Comanda e anulată în sistem și nu mai poate fi reactivată — nici pe
+            site, nici în gestiune. Dacă marfa pleacă totuși, înregistrați
+            vânzarea direct în gestiune.
+          </Text>
+        ) : (
+        <>
         <Select value={code} onValueChange={(v) => setCode(v as StatusCode)}>
           <Select.Trigger>
             <Select.Value placeholder="Alege statusul" />
@@ -292,6 +300,8 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
             {code === "canceled" ? "Anulează comanda" : "Salvează"}
           </Button>
         </div>
+        </>
+        )}
       </div>
 
       {/* Doar când linkul chiar se poate trimite (card eșuat, virament

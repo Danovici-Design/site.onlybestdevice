@@ -185,6 +185,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
+  /**
+   * Pe o comandă anulată eticheta ar fi o minciună: anularea bate orice
+   * etichetă pe site și în gestiune, iar comanda nu se poate reactiva. La #412
+   * operatorul a pus „Finalizată” + AWB, clientul a primit emailul, dar site-ul
+   * arăta tot „Anulată” și gestiunea ștersese garanțiile.
+   */
+  if (current.derived === "canceled") {
+    return res.status(409).json({
+      message:
+        "Comanda e anulată în sistem și nu mai poate fi reactivată — statusul nu se poate schimba. " +
+        "Dacă marfa pleacă totuși, înregistrați vânzarea direct în gestiune.",
+    })
+  }
+
   const metadata = (order.metadata ?? {}) as Record<string, any>
   const entry = {
     code,

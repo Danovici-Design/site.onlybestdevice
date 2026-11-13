@@ -21,6 +21,7 @@ import {
   ORDER_EMAIL_FIELDS,
   sendPaymentFailedEmail,
 } from '../../../lib/orders/order-emails'
+import { isDuplicateIpn } from '../../../lib/netopia/ipn-dedupe'
 
 /**
  * IPN-ul Netopia, în ambele dialecte:
@@ -266,7 +267,7 @@ async function applyIpn(
    * `ntpID` identifică tranzacția, deci un IPN deja procesat se recunoaște
    * indiferent ce s-a întâmplat între timp.
    */
-  if (facts.paymentId && meta.netopia?.last_payment_id === facts.paymentId) {
+  if (isDuplicateIpn(meta.netopia, facts.paymentId, action)) {
     return { ok: true }
   }
 
@@ -298,7 +299,9 @@ async function applyIpn(
         ...(meta.netopia ?? {}),
         status: action,
         error_code: facts.errorCode,
-        ...(facts.paymentId ? { last_payment_id: facts.paymentId } : {}),
+        ...(facts.paymentId
+          ? { last_payment_id: facts.paymentId, last_payment_action: action }
+          : {}),
         processed_amount:
           facts.processedAmount ?? meta.netopia?.processed_amount,
         status_received_at: new Date().toISOString(),
