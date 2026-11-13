@@ -248,3 +248,27 @@ describe("canSendPaymentLink", () => {
     )
   })
 })
+
+describe("effectiveOrderStatus pe comenzi anulate", () => {
+  it("ignoră eticheta manuală, chiar cu snapshot identic (#412)", () => {
+    const canceled = order({
+      status: "canceled",
+      canceled_at: "2026-11-12T13:51:06Z",
+      payment_status: null,
+      fulfillment_status: null,
+    })
+    const o = {
+      ...canceled,
+      metadata: {
+        order_status: {
+          code: "completed",
+          at: "2026-11-13T07:35:55Z",
+          snapshot: orderStateSnapshot(canceled),
+        },
+      },
+    }
+    const status = effectiveOrderStatus(o)
+    expect(status.code).toBe("canceled")
+    expect(status.manual).toBe(false)
+  })
+})

@@ -8,18 +8,21 @@
  * așa confirmarea unei plăți de 6.237 lei: gardul compara doar id-ul, a socotit
  * succesul o repetare a eșecului și a răspuns „OK” fără să captureze.
  *
- * Excepția e intenționat îngustă: pe același `ntpID` trece DOAR `confirmed`
- * (banii au intrat) și doar dacă tranzacția n-a fost deja confirmată. Orice
+ * Excepția e intenționat îngustă: pe același `ntpID` trec DOAR statusurile în
+ * care banii au intrat — `confirmed` și `underpaid` (încasat mai puțin, nu se
+ * capturează, doar se consemnează) — și doar o dată fiecare. Orice
  * alt status repetat pe aceeași tranzacție rămâne blocat ca înainte — un
  * „expirat” întârziat al unei încercări vechi nu trebuie să anuleze comanda
  * pe care clientul o plătește chiar acum.
  */
+const MONEY_IN = new Set(["confirmed", "underpaid"])
+
 export const isDuplicateIpn = (
   netopiaMeta: Record<string, any> | null | undefined,
   paymentId: string | null,
   action: string
 ): boolean => {
   if (!paymentId || netopiaMeta?.last_payment_id !== paymentId) return false
-  if (action !== "confirmed") return true
-  return netopiaMeta?.last_payment_action === "confirmed"
+  if (!MONEY_IN.has(action)) return true
+  return netopiaMeta?.last_payment_action === action
 }

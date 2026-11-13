@@ -1022,7 +1022,13 @@ const tbiSubmitAlertAdmin: Renderer = ({
       <li>Client: ${escape(customer || "—")} · ${escape(order?.email ?? "")} · ${escape(order?.shipping_address?.phone ?? "")}</li>
       <li>Total finanțat: <strong>${money(order?.total, order?.currency_code)}</strong></li>
       <li>Încercări: ${escape(attempts)}</li>
-      ${error ? `<li>Eroare: <code style="font-size:13px;">${escape(error)}</code></li>` : ""}
+      ${
+        kind === "late_after_cancel"
+          ? `<li>Status primit de la TBI: <strong>${escape(error ?? "")}</strong></li>`
+          : error
+            ? `<li>Eroare: <code style="font-size:13px;">${escape(error)}</code></li>`
+            : ""
+      }
     </ul>`
 
   const variants: Record<string, { subject: string; heading: string; intro: string; outro: string }> = {

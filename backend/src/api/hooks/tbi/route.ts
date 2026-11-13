@@ -8,7 +8,11 @@ import {
   Modules,
 } from '@medusajs/framework/utils'
 import { getTbiClient } from '../../../modules/tbi-pay/client'
-import { isTbiOrder, sendTbiAlert } from '../../../lib/tbi/submit-application'
+import {
+  isTbiOrder,
+  sendTbiAlert,
+  TBI_ORDER_FIELDS,
+} from '../../../lib/tbi/submit-application'
 
 /**
  * Callback-ul de statusuri TBI (ReturnToProvider). TBI trimite un POST cu
@@ -82,12 +86,6 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       'display_id',
       'status',
       'canceled_at',
-      'email',
-      'total',
-      'currency_code',
-      'shipping_address.first_name',
-      'shipping_address.last_name',
-      'shipping_address.phone',
       'metadata',
       'payment_collections.payments.id',
       'payment_collections.payments.captured_at',
@@ -161,9 +159,19 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
       shouldAlert ? { late_alerts: [...alerted, statusName] } : {}
     )
     if (shouldAlert) {
+      // Totalul iese 0 fără `items.*` (vezi TBI_ORDER_FIELDS), deci emailul
+      // ia comanda completă, nu pe cea minimă citită pentru callback.
+      const full = await query
+        .graph({
+          entity: 'order',
+          fields: TBI_ORDER_FIELDS,
+          filters: { id: order.id },
+        })
+        .then(({ data }) => data?.[0])
+        .catch(() => null)
       await sendTbiAlert(req.scope, {
         kind: 'late_after_cancel',
-        order,
+        order: full ?? order,
         details: {
           error: statusName === 'approved' ? 'aprobat' : 'în analiză',
           attempts: Number(meta.tbi?.attempts ?? 0),

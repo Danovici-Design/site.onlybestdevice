@@ -244,8 +244,15 @@ export const effectiveOrderStatus = (order: any): EffectiveOrderStatus => {
   const derived = deriveOrderStatus(order)
   const manual = readManualStatus(order)
 
-  // Eticheta manuală ține doar cât timp realitatea nu s-a mișcat sub ea.
-  if (manual && sameOrderState(manual.snapshot, orderStateSnapshot(order))) {
+  // Eticheta manuală ține doar cât timp realitatea nu s-a mișcat sub ea. Pe o
+  // comandă anulată nu ține deloc: anularea e ireversibilă, iar storefront-ul
+  // și gestiunea o arată oricum — la #412 adminul afișa „Finalizată” peste
+  // anulare, deci operatorul credea că a rezolvat-o.
+  if (
+    manual &&
+    derived !== "canceled" &&
+    sameOrderState(manual.snapshot, orderStateSnapshot(order))
+  ) {
     return {
       code: manual.code,
       label: ORDER_STATUS_LABELS[manual.code],

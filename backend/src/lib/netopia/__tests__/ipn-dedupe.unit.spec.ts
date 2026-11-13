@@ -46,4 +46,11 @@ describe("isDuplicateIpn", () => {
       isDuplicateIpn({ last_payment_id: "1", last_payment_action: "error" }, "1", "canceled")
     ).toBe(true)
   })
+  it("încasare parțială (underpaid) după eșec trece, o singură dată", () => {
+    const meta = { last_payment_id: "1", last_payment_action: "error" }
+    expect(isDuplicateIpn(meta, "1", "underpaid")).toBe(false)
+    expect(
+      isDuplicateIpn({ last_payment_id: "1", last_payment_action: "underpaid" }, "1", "underpaid")
+    ).toBe(true)
+  })
 })
