@@ -15,6 +15,7 @@ import {
   isFinancedOrder,
   isPaymentLocked,
 } from '../../../../lib/orders/order-status'
+import { COMPUTED_STATUS_FIELDS, withComputedStatuses } from '../../../../lib/orders/computed-status'
 import {
   countryNumeric,
   getNetopiaV2Client,
@@ -59,8 +60,7 @@ export const POST = async (
       'metadata',
       'status',
       'canceled_at',
-      'payment_status',
-      'fulfillment_status',
+      ...COMPUTED_STATUS_FIELDS,
       'customer_id',
       // `items.*`, NU `items.quantity`: pe `order` cantitatea sta in
       // `order_item`, iar cu campuri explicite vine `undefined` — `total` iese
@@ -84,15 +84,14 @@ export const POST = async (
       'billing_address.postal_code',
       'billing_address.country_code',
       'payment_collections.id',
-      'payment_collections.status',
-      'payment_collections.amount',
       'payment_collections.payments.provider_id',
       'payment_collections.payment_sessions.provider_id',
     ],
     filters: { id: orderId },
   })
 
-  const order = orders?.[0]
+  // payment_status/fulfillment_status nu vin din query.graph — vezi computed-status.
+  const order = withComputedStatuses(orders?.[0])
   if (!order) {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, 'Comanda nu există')
   }

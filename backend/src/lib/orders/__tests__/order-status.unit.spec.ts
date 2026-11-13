@@ -37,10 +37,11 @@ describe("deriveOrderStatus", () => {
     )
   })
 
-  it("marfa plecată înseamnă finalizată", () => {
+  it("marfa plecată NU înseamnă finalizată — finalizează operatorul", () => {
     for (const fulfillment_status of ["fulfilled", "shipped", "delivered"]) {
-      expect(deriveOrderStatus(order({ fulfillment_status }))).toBe("completed")
+      expect(deriveOrderStatus(order({ fulfillment_status }))).not.toBe("completed")
     }
+    expect(deriveOrderStatus(order({ status: "completed" }))).toBe("completed")
   })
 
   it("stările parțiale de livrare nu finalizează", () => {
@@ -160,7 +161,7 @@ describe("eticheta manuală", () => {
       fulfillment_status: "shipped",
     }
     const status = effectiveOrderStatus(shipped)
-    expect(status.code).toBe("completed")
+    expect(status.code).toBe("processing")
     expect(status.manual).toBe(false)
     expect(status.note).toBeNull()
   })
@@ -243,9 +244,7 @@ describe("canSendPaymentLink", () => {
   it("nu pentru comenzi încasate, anulate sau livrate", () => {
     expect(canSendPaymentLink(order({ payment_status: "captured" }))).toBe(false)
     expect(canSendPaymentLink(order({ status: "canceled" }))).toBe(false)
-    expect(canSendPaymentLink(order({ fulfillment_status: "shipped" }))).toBe(
-      false
-    )
+    expect(canSendPaymentLink(order({ status: "completed" }))).toBe(false)
   })
 })
 

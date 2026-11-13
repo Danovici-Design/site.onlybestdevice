@@ -1,6 +1,9 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
-import { cancelOrderWorkflow } from "@medusajs/core-flows"
+import {
+  cancelOrderWorkflow,
+  completeOrderWorkflow,
+} from "@medusajs/core-flows"
 import { z } from "zod"
 
 import { hasBankAccount } from "../../../../../lib/company/bank-account"
@@ -17,6 +20,7 @@ import {
   isFinancedOrder,
   type OrderStatusCode,
 } from "../../../../../lib/orders/order-status"
+import { withComputedStatuses } from "../../../../../lib/orders/computed-status"
 
 const BodySchema = z.object({
   code: z.enum(ORDER_STATUS_CODES as [OrderStatusCode, ...OrderStatusCode[]]),
@@ -53,7 +57,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     filters: { id: req.params.id },
   })
 
-  const order = orders?.[0]
+  const order = withComputedStatuses(orders?.[0])
   if (!order) {
     return res.status(404).json({ message: "Comanda nu există." })
   }
@@ -145,7 +149,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     filters: { id: orderId },
   })
 
-  const order = orders?.[0]
+  const order = withComputedStatuses(orders?.[0])
   if (!order) {
     return res.status(404).json({ message: `Comanda ${orderId} nu există.` })
   }
@@ -199,6 +203,33 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
+  /**
+   * „Finalizată” nu e o etichetă, ci o acțiune — ca „Anulată”: rulează
+   * `completeOrderWorkflow`, deci `order.status` devine `completed` definitiv.
+   * Evenimentul `order.completed` trimite comanda în gestiune ca „completed”,
+   * singurul moment în care IMEI-urile rezervate devin vândute și se generează
+   * garanțiile. Expedierea singură nu mai face asta (decizia magazinului,
+   * 13.11.2026). Ca etichetă, „Finalizată” expira la prima mișcare a comenzii
+   * și nu ajungea niciodată în gestiune.
+   */
+  const completing = code === "completed"
+  if (completing) {
+    if (current.derived === "completed") {
+      return res.status(409).json({ message: "Comanda e deja finalizată." })
+    }
+    try {
+      await completeOrderWorkflow(req.scope).run({
+        input: { orderIds: [order.id] },
+      })
+    } catch (e: any) {
+      logger.error(`[status] Finalizarea comenzii ${order.id} a eșuat: ${e?.message}`)
+      return res.status(400).json({
+        message: e?.message || "Comanda nu a putut fi finalizată.",
+      })
+    }
+    logger.info(`[status] Comanda ${order.id} a fost finalizată din admin.`)
+  }
+
   const metadata = (order.metadata ?? {}) as Record<string, any>
   const entry = {
     code,
@@ -222,7 +253,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     orderModule.updateOrders(order.id, {
       metadata: {
         ...metadata,
-        order_status: entry,
+        // Finalizarea e stare reală, nu etichetă: rămâne doar în istoric (cu
+        // nota/AWB-ul trimis clientului), iar o etichetă veche se șterge.
+        order_status: completing ? null : entry,
         // Ultimele 20 de schimbări; mai mult n-ar face decât să umfle metadata.
         order_status_history: [...history, entry].slice(-20),
       },
@@ -240,7 +273,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const storefrontUrl = (
       process.env.STOREFRONT_URL || "http://localhost:8000"
     ).replace(/\/$/, "")
-    const payUrl = canSendPaymentLink(order)
+    const payUrl = !completing && canSendPaymentLink(order)
       ? `${storefrontUrl}/${process.env.STOREFRONT_LOCALE || "ro"}/order/${order.id}/pay`
       : null
 
@@ -279,8 +312,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       code,
       label: ORDER_STATUS_LABELS[code],
       note: note ?? null,
-      manual: true,
-      derived: current.derived,
+      manual: !completing,
+      derived: completing ? "completed" : current.derived,
     },
     notified,
   })

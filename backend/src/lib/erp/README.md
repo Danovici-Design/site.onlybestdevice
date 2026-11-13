@@ -57,8 +57,7 @@ singură dată, ca regula să nu fie duplicată în PHP:
 | `status=canceled` / `payment_status=canceled`       | `cancelled`  | vânzare anulată, stoc restaurat, garanții anulate  |
 | `payment_status=refunded` (integral)                | `refunded`   | idem, marcat ca retur                              |
 | `payment_status=requires_action`                    | `failed`     | ca `cancelled`                                     |
-| `status=completed`                                  | `completed`  | rezervările devin vânzări, se generează garanțiile |
-| `fulfillment_status` ∈ {fulfilled, shipped, delivered} | `completed` | idem                                            |
+| `status=completed` (butonul „Finalizează” din admin) | `completed`  | rezervările devin vânzări, se generează garanțiile |
 | plata încasată (`captured`, `partially_*`, IPN Netopia `confirmed`) | `processing` | stocul rămâne rezervat; `date_paid` marchează vânzarea ca încasată |
 | ramburs (`authorized`)                              | `processing` | stocul rămâne rezervat                             |
 | altfel — inclusiv card, virament și rate neîncasate | `pending`    | stocul rămâne rezervat                             |
@@ -78,15 +77,16 @@ clientul apasă „Plătește", cu telefonul încă în raft. Dacă `captured` a
 Faptul că s-a încasat călătorește separat, prin `date_paid` — exact ca la
 WooCommerce, unde plata cu cardul lasă comanda în `processing`.
 
-**Stările parțiale nu finalizează.** Gestiunea nu are noțiunea de comandă pe
-jumătate livrată; `completed` pe o comandă expediată parțial ar marca vândute
-toate IMEI-urile ei, inclusiv cele încă în raft.
+**Expedierea nu e finalizare (din 13.11.2026).** IMEI-ul rămâne rezervat până
+când operatorul alege „Finalizată” în cardul „Status comandă” din admin, care
+rulează `completeOrderWorkflow` (`order.status = completed`, eveniment
+`order.completed`). Abia atunci gestiunea marchează vânzarea și generează
+garanțiile — decizia magazinului.
 
-**De ce contează livrarea:** în Medusa `order.status` rămâne `pending` pe tot
-parcursul vieții comenzii (se schimbă doar la anulare sau la închiderea manuală).
-Dacă am aștepta doar `completed`, IMEI-ul rezervat n-ar trece niciodată pe
-„vândut". De aceea expedierea marfii e tratată ca finalizare — la fel ca în WC,
-unde operatorul pune `completed` la expediere.
+**`payment_status` / `fulfillment_status` nu vin din `query.graph`.** Sunt
+calculate de Medusa doar în rutele ei; payload-ul le calculează cu aceleași
+funcții prin `lib/orders/computed-status.ts`. Până la 13.11.2026 veneau goale,
+deci `refunded` și regula veche „expediat = finalizat” nu se declanșau niciodată.
 
 Refund-ul **parțial** nu declanșează `refunded`: ar elibera tot stocul comenzii
 pentru un retur de o bucată.

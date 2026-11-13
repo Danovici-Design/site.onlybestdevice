@@ -25,6 +25,8 @@
  * într-un al doilea loc de unde ar începe să difere.
  */
 
+import { COMPUTED_STATUS_FIELDS } from "./computed-status"
+
 export type OrderStatusCode =
   | "processing"
   | "pending"
@@ -48,23 +50,21 @@ export const ORDER_STATUS_CODES = Object.keys(
 ) as OrderStatusCode[]
 
 /**
- * Statusurile de livrare în care marfa a plecat efectiv din magazin.
+ * „Finalizată” înseamnă DOAR `order.status === "completed"`, adică operatorul a
+ * finalizat comanda din admin (`POST /admin/orders/:id/status`, care rulează
+ * `completeOrderWorkflow`). Expedierea nu finalizează nimic: în gestiune
+ * „completed” marchează IMEI-urile vândute și generează garanțiile, iar asta se
+ * face doar la finalizare (decizia magazinului, 13.11.2026).
  *
- * `fulfilled` (împachetat, încă în magazin) intră aici intenționat: în Medusa
- * `order.status` rămâne „pending" pe toată viața comenzii, deci dacă am aștepta
- * doar închiderea manuală, o comandă livrată n-ar ajunge niciodată „Finalizată".
- * Aceeași regulă decide și ce trimitem în gestiune — vezi `lib/erp/order-payload.ts`,
- * care importă constanta de aici tocmai ca cele două să nu poată diverge.
+ * Câmpurile minime din care se poate calcula statusul. `payment_status` și
+ * `fulfillment_status` nu vin din `query.graph` — rezultatul trebuie trecut
+ * prin `withComputedStatuses` (vezi `computed-status.ts`).
  */
-export const SHIPPED_STATUSES = new Set(["fulfilled", "shipped", "delivered"])
-
-/** Câmpurile minime din care se poate calcula statusul. */
 export const ORDER_STATUS_FIELDS = [
   "id",
   "status",
   "canceled_at",
-  "payment_status",
-  "fulfillment_status",
+  ...COMPUTED_STATUS_FIELDS,
   "metadata",
   "payment_collections.payments.provider_id",
   "payment_collections.payments.captured_at",
@@ -168,13 +168,12 @@ export const isPaymentCommitted = (order: any): boolean =>
  * terminale au prioritate.
  */
 export const deriveOrderStatus = (order: any): OrderStatusCode => {
-  const fulfillmentStatus = (order?.fulfillment_status ?? "") as string
   const isPaid = isPaymentCommitted(order)
 
   if (order?.status === "canceled" || order?.canceled_at) {
     return "canceled"
   }
-  if (order?.status === "completed" || SHIPPED_STATUSES.has(fulfillmentStatus)) {
+  if (order?.status === "completed") {
     return "completed"
   }
 

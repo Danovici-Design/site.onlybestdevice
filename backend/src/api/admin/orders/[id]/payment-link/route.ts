@@ -9,6 +9,7 @@ import {
   isCodOrder,
   isFinancedOrder,
 } from "../../../../../lib/orders/order-status"
+import { withComputedStatuses } from "../../../../../lib/orders/computed-status"
 
 const BodySchema = z.object({
   /** Text liber inclus în email. */
@@ -66,7 +67,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     filters: { id: orderId },
   })
 
-  const order = orders?.[0]
+  const order = withComputedStatuses(orders?.[0])
   if (!order) {
     return res.status(404).json({ message: `Comanda ${orderId} nu există.` })
   }

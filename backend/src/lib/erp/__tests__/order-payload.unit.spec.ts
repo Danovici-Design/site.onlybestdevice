@@ -86,10 +86,14 @@ describe("toCanonicalStatus", () => {
     ).toBe("processing")
   })
 
-  it("expedierea finalizeaza comanda", () => {
+  it("expedierea NU finalizeaza comanda — IMEI-ul ramane rezervat", () => {
     for (const fulfillment_status of ["fulfilled", "shipped", "delivered"]) {
-      expect(toCanonicalStatus(order({ fulfillment_status }))).toBe("completed")
+      expect(toCanonicalStatus(order({ fulfillment_status }))).not.toBe("completed")
     }
+  })
+
+  it("doar finalizarea din admin (order.status completed) finalizeaza", () => {
+    expect(toCanonicalStatus(order({ status: "completed" }))).toBe("completed")
   })
 
   it("expedierea partiala NU finalizeaza comanda", () => {

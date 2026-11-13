@@ -137,6 +137,7 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
   const [saving, setSaving] = useState(false)
   const [sendingLink, setSendingLink] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [confirmComplete, setConfirmComplete] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -173,6 +174,12 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
       // sau comanda n-are email, statusul se salvează dar emailul nu pleacă.
       if (chosen === "canceled") {
         toast.success("Comanda a fost anulată")
+      } else if (chosen === "completed" && !(notify && !body.notified)) {
+        toast.success(
+          notify
+            ? "Comanda a fost finalizată, email trimis clientului"
+            : "Comanda a fost finalizată"
+        )
       } else if (notify && !body.notified) {
         toast.warning(
           order.email
@@ -191,6 +198,7 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
     } finally {
       setSaving(false)
       setConfirmCancel(false)
+      setConfirmComplete(false)
     }
   }
 
@@ -199,6 +207,12 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
     // Anularea eliberează stocul și anulează plățile — nu e reversibilă.
     if (code === "canceled") {
       setConfirmCancel(true)
+      return
+    }
+    // Finalizarea trece IMEI-urile pe vândut în gestiune și generează
+    // garanțiile — nici ea nu se poate desface.
+    if (code === "completed" && state.derived.code !== "completed") {
+      setConfirmComplete(true)
       return
     }
     apply(code)
@@ -297,7 +311,11 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
             disabled={!dirty && !notify}
             onClick={save}
           >
-            {code === "canceled" ? "Anulează comanda" : "Salvează"}
+            {code === "canceled"
+              ? "Anulează comanda"
+              : code === "completed" && state.derived.code !== "completed"
+                ? "Finalizează comanda"
+                : "Salvează"}
           </Button>
         </div>
         </>
@@ -377,6 +395,24 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
             <Prompt.Cancel>Renunță</Prompt.Cancel>
             <Prompt.Action onClick={() => apply("canceled")}>
               Anulează comanda
+            </Prompt.Action>
+          </Prompt.Footer>
+        </Prompt.Content>
+      </Prompt>
+
+      <Prompt open={confirmComplete} onOpenChange={setConfirmComplete}>
+        <Prompt.Content>
+          <Prompt.Header>
+            <Prompt.Title>Finalizezi comanda?</Prompt.Title>
+            <Prompt.Description>
+              În gestiune, telefoanele rezervate trec pe vândut și se generează
+              garanțiile. Comanda nu mai poate fi readusă în lucru.
+            </Prompt.Description>
+          </Prompt.Header>
+          <Prompt.Footer>
+            <Prompt.Cancel>Renunță</Prompt.Cancel>
+            <Prompt.Action onClick={() => apply("completed")}>
+              Finalizează comanda
             </Prompt.Action>
           </Prompt.Footer>
         </Prompt.Content>

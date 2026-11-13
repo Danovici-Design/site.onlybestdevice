@@ -3,10 +3,13 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { ADDON_FOR, ADDON_FOR_TITLE, SH_SERVICES_HANDLE } from "../second-hand"
 import { WARRANTY_HANDLE } from "../warranty-prices"
 import {
-  SHIPPED_STATUSES,
   effectiveOrderStatus,
   isPaymentCommitted,
 } from "../orders/order-status"
+import {
+  COMPUTED_STATUS_FIELDS,
+  withComputedStatuses,
+} from "../orders/computed-status"
 
 /**
  * Construieste payload-ul normalizat al unei comenzi pentru ERP-ul din Laravel.
@@ -100,8 +103,7 @@ const ORDER_FIELDS = [
   "id",
   "display_id",
   "status",
-  "payment_status",
-  "fulfillment_status",
+  ...COMPUTED_STATUS_FIELDS,
   "metadata",
   "email",
   "currency_code",
@@ -138,7 +140,6 @@ const ORDER_FIELDS = [
 export const toCanonicalStatus = (order: any): ErpCanonicalStatus => {
   const orderStatus = (order?.status ?? "") as string
   const paymentStatus = (order?.payment_status ?? "") as string
-  const fulfillmentStatus = (order?.fulfillment_status ?? "") as string
 
   if (orderStatus === "canceled" || order?.canceled_at) {
     return "cancelled"
@@ -156,12 +157,12 @@ export const toCanonicalStatus = (order: any): ErpCanonicalStatus => {
     return "failed"
   }
 
+  // Doar finalizarea din admin (order.status = completed) inchide comanda in
+  // gestiune: rezervarile devin vanzari si se genereaza garantiile. Expedierea
+  // NU — IMEI-ul ramane rezervat pana confirma operatorul (decizia magazinului,
+  // 13.11.2026). Pana atunci regula exista dar nu se declansa niciodata:
+  // `fulfillment_status` venea gol din query.graph.
   if (orderStatus === "completed") {
-    return "completed"
-  }
-  // Marfa a plecat → comanda e finalizata pentru gestiune: rezervarile devin
-  // vanzari si se genereaza garantiile.
-  if (SHIPPED_STATUSES.has(fulfillmentStatus)) {
     return "completed"
   }
 
@@ -378,11 +379,11 @@ export const fetchErpOrderPayload = async (
 
   const { data: orders } = await query.graph({
     entity: "order",
-    fields: ORDER_FIELDS,
+    fields: Array.from(new Set(ORDER_FIELDS)),
     filters: { id: orderId },
   })
 
-  const order = orders?.[0]
+  const order = withComputedStatuses(orders?.[0])
   if (!order) return null
 
   return toErpPayload(order)
