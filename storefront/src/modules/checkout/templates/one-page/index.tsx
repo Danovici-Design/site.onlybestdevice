@@ -92,9 +92,8 @@ import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useContext, useEffect, useMemo, useRef, useState } from "react"
 import {
-  VAT_MARGIN_EXPLAINER,
-  VAT_MARGIN_INVOICE_MENTION,
-  VAT_MARGIN_SHORT,
+  VAT_NOTICE_TEXT,
+  VAT_NOTICE_TITLE,
 } from "@lib/util/vat-margin"
 
 /* ------------------------------------------------------------------ */
@@ -1224,9 +1223,9 @@ const OnePageCheckout = ({
                 <Info size={16} weight="bold" className="mt-0.5 shrink-0" />
                 <p>
                   <span className="font-semibold">
-                    {VAT_MARGIN_INVOICE_MENTION}
+                    {VAT_NOTICE_TITLE}
                   </span>{" "}
-                  {VAT_MARGIN_EXPLAINER}
+                  {VAT_NOTICE_TEXT}
                 </p>
               </div>
             </div>
@@ -1671,9 +1670,9 @@ const OnePageCheckout = ({
               <Info size={14} weight="bold" className="mt-0.5 shrink-0" />
               <span>
                 <span className="font-semibold">
-                  {VAT_MARGIN_INVOICE_MENTION}
+                  {VAT_NOTICE_TITLE}
                 </span>{" "}
-                {VAT_MARGIN_SHORT}
+                {VAT_NOTICE_TEXT}
               </span>
             </p>
           )}

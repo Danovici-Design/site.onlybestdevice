@@ -395,10 +395,11 @@ const buyerFiscalLine = (order: Record<string, any>): string => {
   return `<li><strong>Factură pe firmă:</strong> ${parts.join(" · ")}</li>`
 }
 
-// Toate produsele se vând în regim special TVA la marjă. Textul oglindește
-// storefront/src/lib/util/vat-margin.ts (mențiunea de pe factură).
-const VAT_MARGIN_INVOICE_MENTION =
-  "TVA inclusă în marja de profit — Regim special conform art. 312 Cod fiscal."
+// Toate produsele se vând în regim special second-hand (art. 312). Textul
+// oglindește storefront/src/lib/util/vat-margin.ts — ține-le identice.
+const VAT_NOTICE_TITLE = "TVA nedeductibil."
+const VAT_NOTICE_TEXT =
+  "Produsele se vând în regimul special pentru bunuri second-hand (art. 312 Cod fiscal), așa că TVA-ul nu apare pe factură și nu se poate deduce."
 
 /**
  * Aceleași date, confirmate clientului cât mai poate cere o corectură.
@@ -412,7 +413,7 @@ const buyerFiscalNote = (order: Record<string, any>): string => {
   const name = fiscal.name || order.billing_address?.company || ""
 
   return `<p style="margin:16px 0 0;font-size:13px;color:${COLOR.muted};">Factura se emite pe <strong>${escape(name)}</strong>, ${escape(formatBuyerCui(fiscal.cui, fiscal.vatPayer))}${fiscal.regCom ? `, Reg. Com. ${escape(fiscal.regCom)}` : ""}. Dacă datele nu sunt corecte, răspunde la acest email.</p>
-    <p style="margin:8px 0 0;font-size:13px;color:${COLOR.muted};"><strong>${VAT_MARGIN_INVOICE_MENTION}</strong> TVA-ul nu apare separat pe factură și nu poate fi dedus.</p>`
+    <p style="margin:8px 0 0;font-size:13px;color:${COLOR.muted};"><strong>${VAT_NOTICE_TITLE}</strong> ${VAT_NOTICE_TEXT}</p>`
 }
 
 // Notificarea armonizată UE despre garanția legală (Reg. (UE) 2025/1960).
