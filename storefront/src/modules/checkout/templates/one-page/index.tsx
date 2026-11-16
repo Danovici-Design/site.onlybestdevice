@@ -91,10 +91,7 @@ import {
 import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useContext, useEffect, useMemo, useRef, useState } from "react"
-import {
-  VAT_NOTICE_TEXT,
-  VAT_NOTICE_TITLE,
-} from "@lib/util/vat-margin"
+import { VAT_NOTICE } from "@lib/util/vat-margin"
 
 /* ------------------------------------------------------------------ */
 /* Metadatele metodelor de plată (ordinea, titluri RO, logo-uri)       */
@@ -1221,12 +1218,7 @@ const OnePageCheckout = ({
                 data-testid="company-vat-margin-notice"
               >
                 <Info size={16} weight="bold" className="mt-0.5 shrink-0" />
-                <p>
-                  <span className="font-semibold">
-                    {VAT_NOTICE_TITLE}
-                  </span>{" "}
-                  {VAT_NOTICE_TEXT}
-                </p>
+                <p className="font-semibold">{VAT_NOTICE}</p>
               </div>
             </div>
           )}
@@ -1668,12 +1660,7 @@ const OnePageCheckout = ({
           {companyInvoice && (
             <p className="flex gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
               <Info size={14} weight="bold" className="mt-0.5 shrink-0" />
-              <span>
-                <span className="font-semibold">
-                  {VAT_NOTICE_TITLE}
-                </span>{" "}
-                {VAT_NOTICE_TEXT}
-              </span>
+              <span className="font-semibold">{VAT_NOTICE}</span>
             </p>
           )}
 
