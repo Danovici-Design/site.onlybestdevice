@@ -83,6 +83,7 @@ import Installments from "@modules/products/components/installments"
 import SkeletonCardDetails from "@modules/skeletons/components/skeleton-card-details"
 import {
   ArrowUUpLeft,
+  Info,
   Lock,
   ShieldCheck,
   Truck,
@@ -90,6 +91,11 @@ import {
 import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useContext, useEffect, useMemo, useRef, useState } from "react"
+import {
+  VAT_MARGIN_EXPLAINER,
+  VAT_MARGIN_INVOICE_MENTION,
+  VAT_MARGIN_SHORT,
+} from "@lib/util/vat-margin"
 
 /* ------------------------------------------------------------------ */
 /* Metadatele metodelor de plată (ordinea, titluri RO, logo-uri)       */
@@ -1210,6 +1216,19 @@ const OnePageCheckout = ({
                 Datele vin din registrul public ANAF. Adresa completată mai jos
                 este sediul social — livrarea rămâne la adresa de mai sus.
               </p>
+
+              <div
+                className="mt-3 flex gap-2.5 rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900"
+                data-testid="company-vat-margin-notice"
+              >
+                <Info size={16} weight="bold" className="mt-0.5 shrink-0" />
+                <p>
+                  <span className="font-semibold">
+                    {VAT_MARGIN_INVOICE_MENTION}
+                  </span>{" "}
+                  {VAT_MARGIN_EXPLAINER}
+                </p>
+              </div>
             </div>
           )}
 
@@ -1642,6 +1661,20 @@ const OnePageCheckout = ({
           {isCod(selectedPayment) && (
             <p className="-mt-2 text-xs leading-relaxed text-brand-dark/55">
               {COURIER_SETTLED_EXPLAINER}
+            </p>
+          )}
+
+          {/* Firma trebuie să vadă înainte de plată că nu poate deduce TVA-ul
+              (regim special art. 312) — altfel reclamă factura după. */}
+          {companyInvoice && (
+            <p className="flex gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+              <Info size={14} weight="bold" className="mt-0.5 shrink-0" />
+              <span>
+                <span className="font-semibold">
+                  {VAT_MARGIN_INVOICE_MENTION}
+                </span>{" "}
+                {VAT_MARGIN_SHORT}
+              </span>
             </p>
           )}
 

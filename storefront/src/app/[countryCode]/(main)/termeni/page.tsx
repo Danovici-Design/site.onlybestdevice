@@ -3,6 +3,7 @@ import { canonical } from "@lib/util/canonical"
 import InfoPageLayout from "@modules/suport/components/info-page-layout"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { COMPANY } from "@lib/util/company-info"
+import { VAT_MARGIN_INVOICE_MENTION } from "@lib/util/vat-margin"
 
 export const metadata: Metadata = {
   title: "Termeni și condiții",
@@ -158,10 +159,10 @@ export default function TermeniPage() {
       <h2>Prețuri și plăți</h2>
       <p>
         Toate prețurile sunt exprimate în lei (RON) și sunt prețuri finale către
-        consumator. Pentru o parte dintre produse se aplică regimul special de
-        TVA la marja de profit, descris la secțiunea{" "}
-        <em>Originea produselor</em> de mai jos; în acest caz TVA nu se
-        evidențiază distinct pe factură.
+        consumator. Tuturor produselor li se aplică regimul special de TVA la
+        marja de profit, descris la secțiunea{" "}
+        <em>Originea produselor</em> de mai jos; TVA nu se evidențiază distinct
+        pe factură și nu poate fi dedus.
       </p>
       <p>
         Taxa de transport este afișată separat în coș, înainte de plasarea
@@ -516,7 +517,7 @@ export default function TermeniPage() {
 
       <h3>4. Regimul fiscal aplicabil. TVA — regim special (marjă de profit)</h3>
       <p>
-        (1) Pentru o parte dintre produsele comercializate,{" "}
+        (1) Pentru toate produsele comercializate,{" "}
         {COMPANY.ragioneSociale} aplică Regimul special pentru bunuri
         second-hand, obiecte de artă, de colecție sau antichități, reglementat
         de art. 312 din Codul fiscal și de Directiva 2006/112/CE privind
@@ -542,8 +543,7 @@ export default function TermeniPage() {
       </ul>
       <p>
         (4) Factura emisă în acest regim va conține, conform obligațiilor
-        legale, mențiunea: „TVA inclusă în marja de profit — Regim special
-        conform art. 312 Cod fiscal.”
+        legale, mențiunea: „{VAT_MARGIN_INVOICE_MENTION}”
       </p>
       <p>
         (5) Clientul înțelege și acceptă faptul că, în cazul bunurilor vândute
