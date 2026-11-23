@@ -3,56 +3,18 @@ import { HttpTypes } from "@medusajs/types"
 export const SALE_BADGE_LABEL = "Ofertă"
 
 /**
- * Tagul scris de bifa „Ofertă" din admin — selecția echipei.
+ * Tagul scris de bifa „Ofertă specială" din admin — singurul criteriu pentru
+ * /oferte, secțiunea Oferte de pe home și badge-ul „Ofertă".
  *
- * Exact unul: dacă am accepta și sinonime moștenite din import (`sale`,
- * `reducere`, …), un produs le-ar putea purta fără ca bifa din admin să arate
- * ceva și fără să poată fi scos de acolo. Trebuie să rămână aliniat cu
- * `OFFER_TAG` din `backend/src/lib/discounted-products.ts`.
+ * Un preț tăiat singur NU face produsul „ofertă" (decizia din 23.11.2026):
+ * produsul redus dar nebifat își arată prețul tăiat, dar fără badge și fără să
+ * apară pe /oferte. Exact un tag, fără sinonime moștenite din import (`sale`,
+ * `reducere`…), ca bifa din admin să fie singura cale de a-l pune și scoate.
+ * Trebuie să rămână aliniat cu `OFFER_TAG` din
+ * `backend/src/lib/discounted-products.ts`.
  */
 const SALE_TAG = "oferta"
 
-/**
- * Tagul bifei „Ascuns de pe /oferte": reducerea rămâne (preț tăiat), dar fără
- * /oferte și fără badge. Aliniat cu `OFFER_EXCLUDE_TAG` din
- * `backend/src/lib/discounted-products.ts`.
- */
-const OFFER_EXCLUDE_TAG = "fara-oferte"
-
-const hasTag = (product: HttpTypes.StoreProduct, tag: string): boolean =>
-  (product.tags ?? []).some((t) => (t.value ?? "").toLowerCase() === tag)
-
-const isPicked = (product: HttpTypes.StoreProduct): boolean =>
-  hasTag(product, SALE_TAG)
-
-/**
- * O variantă are acum un preț promoțional real: vine dintr-o price list de tip
- * `sale` și e sub prețul normal. Medusa aplică deja programarea listei, deci o
- * promoție încă nepornită nu trece. Aliniat cu `liveSalePricesSql` din
- * `backend/src/lib/discounted-products.ts`.
- *
- * SQL-ul acceptă doar liste publice (`rules_count = 0`); aici nu avem cum să
- * vedem regulile listei, dar nici nu e nevoie: produsele se citesc fără
- * autentificare (`lib/data/products.ts`), deci o listă pe grup de clienți nu
- * ajunge niciodată în `calculated_price`. Dacă vreodată se citesc cu clientul
- * logat, regula de aici trebuie restrânsă la listele publice.
- */
-const isDiscounted = (product: HttpTypes.StoreProduct): boolean =>
-  (product.variants ?? []).some((v) => {
-    const cp = v.calculated_price
-    return (
-      cp?.calculated_price?.price_list_type === "sale" &&
-      cp.calculated_amount != null &&
-      cp.original_amount != null &&
-      cp.calculated_amount < cp.original_amount
-    )
-  })
-
-/**
- * Produsul e la ofertă: bifat „Ofertă specială" SAU (redus acum ȘI nebifat
- * „Ascuns de pe /oferte"). Aceeași regulă ca lista de pe /oferte
- * (`offersPredicateSql`), ca badge-ul și pagina să nu se contrazică.
- */
+/** Produsul e bifat „Ofertă specială" — aceeași regulă ca lista /oferte. */
 export const isSaleProduct = (product: HttpTypes.StoreProduct): boolean =>
-  isPicked(product) ||
-  (isDiscounted(product) && !hasTag(product, OFFER_EXCLUDE_TAG))
+  (product.tags ?? []).some((t) => (t.value ?? "").toLowerCase() === SALE_TAG)

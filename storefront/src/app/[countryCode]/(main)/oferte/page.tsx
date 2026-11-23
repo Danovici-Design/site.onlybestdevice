@@ -30,9 +30,8 @@ type Params = {
 /**
  * Lista ofertelor curente.
  *
- * Produsele bifate „Ofertă specială" în admin (tagul `oferta`), primele, plus
- * toate cele cu un preț promoțional în vigoare. Regula e în ruta
- * `/store/catalog` (`sale=true`).
+ * Doar produsele bifate „Ofertă specială" în admin (tagul `oferta`); un preț
+ * tăiat singur nu e suficient. Regula e în ruta `/store/catalog` (`sale=true`).
  */
 export default async function OffersPage(props: Params) {
   const params = await props.params

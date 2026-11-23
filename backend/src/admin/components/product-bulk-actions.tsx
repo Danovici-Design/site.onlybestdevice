@@ -32,8 +32,6 @@ type Action =
   | "offer_add"
   | "offer_remove"
   | "offer_clear"
-  | "offer_hide"
-  | "offer_unhide"
   | "delete"
 
 type CategoryMode = "category_add" | "category_remove" | "category_set"
@@ -67,8 +65,6 @@ const DONE_MESSAGE: Record<Action, string> = {
   offer_add: "bifate „Ofertă specială”",
   offer_remove: "debifate de la „Ofertă specială”",
   offer_clear: "fără reducere și scoase de pe /oferte",
-  offer_hide: "ascunse de pe /oferte (reducerea rămâne)",
-  offer_unhide: "readuse pe /oferte",
   delete: "șterse",
 }
 
@@ -223,28 +219,12 @@ const ProductBulkActions = ({
                   confirmThen(
                     "offer_remove",
                     `Debifezi ${n} de la „Ofertă specială”?`,
-                    "Se scoate doar bifa. Produsele care au preț promoțional rămân pe /oferte — pentru ele folosește „Scoate de pe /oferte”.",
+                    "Produsele ies de pe /oferte. Prețul promoțional, dacă există, rămâne pe site.",
                     "Debifează"
                   )
                 }
               >
                 Debifează „Ofertă specială”
-              </DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                onClick={() =>
-                  confirmThen(
-                    "offer_hide",
-                    `Ascunzi ${n} de pe /oferte?`,
-                    "Reducerea și prețul tăiat rămân. Produsele nu mai apar pe /oferte și în secțiunea Oferte de pe prima pagină, iar bifa „Ofertă specială” se scoate.",
-                    "Ascunde de pe /oferte"
-                  )
-                }
-              >
-                Ascunde de pe /oferte (păstrează reducerea)
-              </DropdownMenu.Item>
-              <DropdownMenu.Item onClick={() => run("offer_unhide")}>
-                Arată din nou pe /oferte
               </DropdownMenu.Item>
               <DropdownMenu.Separator />
               <DropdownMenu.Item

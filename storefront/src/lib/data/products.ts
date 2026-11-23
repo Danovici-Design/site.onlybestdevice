@@ -223,7 +223,7 @@ export const listCatalog = async ({
   collectionId?: string
   facetParentId?: string | null
   selected: SelectedFilters
-  /** Ofertele: bifate „Ofertă specială" în admin + cele reduse acum. */
+  /** Ofertele: doar produsele bifate „Ofertă specială" în admin. */
   sale?: boolean
   /** Doar produsele din acest price list, cât timp e în desfășurare. */
   livePriceList?: string

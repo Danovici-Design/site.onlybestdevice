@@ -2,7 +2,6 @@ import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { DetailWidgetProps, AdminProduct } from "@medusajs/types"
 import {
   Bookmarks,
-  EyeSlash,
   ReceiptPercent,
   ShieldCheck,
   Star,
@@ -54,31 +53,18 @@ const FLAGS: Flag[] = [
     offMessage: "Produs scos din Produse recomandate",
   },
   {
-    // Pe /oferte intră automat și produsele cu un preț promoțional în vigoare
-    // (cardul „Preț"). Bifa e selecția echipei: pune în ofertă și un produs
-    // fără reducere, iar bifatele stau primele în listă.
+    // Singurul criteriu pentru /oferte, secțiunea Oferte de pe home și
+    // badge-ul „Ofertă": un preț tăiat singur nu pune produsul acolo (decizia
+    // din 23.11.2026). Tagul e contract cu `OFFER_TAG` (backend
+    // `lib/discounted-products.ts`) și `SALE_TAG` (storefront `lib/util/sale.ts`).
     tag: "oferta",
     icon: <ReceiptPercent />,
     title: "Ofertă specială",
-    hint: "Primul pe /oferte, cu badge-ul „Ofertă”.",
+    hint: "Apare pe /oferte, cu badge-ul „Ofertă”.",
     details:
-      "Produsele cu preț promoțional apar oricum pe /oferte. Bifa pune produsul acolo și fără reducere și îl urcă în fața listei, înaintea celor doar reduse. Debifat, un produs redus rămâne pe /oferte cât timp are prețul promoțional.",
+      "Doar produsele bifate apar pe /oferte, în secțiunea Oferte de pe prima pagină și cu badge-ul „Ofertă”. Prețul promoțional din cardul „Preț” singur nu e suficient: un produs redus dar nebifat își păstrează prețul tăiat, fără să apară pe /oferte.",
     onMessage: "Produs adăugat la Oferte",
     offMessage: "Produs scos din Oferte",
-  },
-  {
-    // Opusul automatismului: un produs redus intră singur pe /oferte. Bifa asta
-    // îl ține afară fără să-i atingă prețul promoțional. Tagul e contract cu
-    // `OFFER_EXCLUDE_TAG` (backend `lib/discounted-products.ts`, storefront
-    // `lib/util/sale.ts`).
-    tag: "fara-oferte",
-    icon: <EyeSlash />,
-    title: "Ascuns de pe /oferte",
-    hint: "Păstrează reducerea, dar nu apare pe /oferte.",
-    details:
-      "Produsul își păstrează prețul promoțional și prețul tăiat, dar nu mai apare pe /oferte, nici în secțiunea Oferte de pe prima pagină, și nu primește badge-ul „Ofertă”. Dacă e bifat și „Ofertă specială”, aceea are întâietate.",
-    onMessage: "Produs ascuns de pe /oferte",
-    offMessage: "Produsul apare din nou pe /oferte, dacă are reducere",
   },
   {
     // Spre deosebire de Ofertă sau Recomandat, aici lipsa bifei nu e o valoare

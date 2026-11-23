@@ -15,10 +15,8 @@ import {
 import { matchKey, numericSortKey } from "../../../lib/product-filters/normalize"
 import { escapeLike, foldSql, foldTerm, searchTerms } from "../../../lib/catalog-search"
 import {
-  OFFER_EXCLUDE_TAG,
   OFFER_TAG,
   offersPredicateSql,
-  taggedProductsSql,
 } from "../../../lib/discounted-products"
 
 /**
@@ -72,9 +70,8 @@ const QuerySchema = z.object({
   /** Interval de preț „min-max"; capetele sunt opționale („-500", „100-"). */
   price: z.string().optional(),
   /**
-   * Ofertele: produsele bifate „Ofertă specială" în admin PLUS cele care au
-   * acum un preț promoțional real și nu sunt bifate „Ascuns de pe /oferte" —
-   * vezi `offersPredicateSql`.
+   * Ofertele: doar produsele bifate „Ofertă specială" în admin — vezi
+   * `offersPredicateSql`. Un preț tăiat singur nu e suficient.
    * Bifatele vin primele la sortarea implicită.
    */
   sale: z
@@ -330,14 +327,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
   // Oferta îngustează SCOPE-ul, nu setul filtrat: pe /oferte fațetele și
   // intervalul de preț trebuie să descrie ofertele, nu tot catalogul.
-  // Bifa „Ofertă" SAU o reducere în vigoare; bifatele sunt marcate în `picked`,
-  // ca selecția echipei să rămână în fața listei, nu îngropată printre ~200 de
-  // produse reduse.
-  const pickedSql = `p.id IN (${taggedProductsSql(bind(OFFER_TAG, "sale"))})`
+  // Doar bifa „Ofertă specială" — vezi `offersPredicateSql`.
   if (q.sale) {
-    scopeWhere.push(
-      offersPredicateSql(bind(OFFER_TAG, "sale"), bind(OFFER_EXCLUDE_TAG, "nosale"))
-    )
+    scopeWhere.push(offersPredicateSql(bind(OFFER_TAG, "sale")))
   }
 
   // Campania îngustează scope-ul la fel ca oferta, ca fațetele să descrie lista.
@@ -453,8 +445,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
              p.title,
              p.created_at,
              MIN(ep.amount) AS price,
-             ${inStockSql} AS in_stock,
-             ${q.sale ? pickedSql : "FALSE"} AS picked
+             ${inStockSql} AS in_stock
       FROM product p
       LEFT JOIN product_variant v ON v.product_id = p.id AND v.deleted_at IS NULL
       LEFT JOIN product_variant_price_set vps ON vps.variant_id = v.id
@@ -649,10 +640,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   // Stocul trece înaintea oricărui alt criteriu, inclusiv relevanța la căutare
   // și sortarea după preț: un produs epuizat nu are ce căuta pe primul ecran.
-  // Pe /oferte, la sortarea implicită, produsele bifate „Ofertă" vin înaintea
-  // celor doar reduse. Sortarea după preț cerută explicit rămâne după preț.
-  const picked = q.sale && q.sort === "created_at" ? "picked DESC, " : ""
-  const orderBy = `in_stock DESC, ${relevance}${picked}${baseOrderBy}`
+  const orderBy = `in_stock DESC, ${relevance}${baseOrderBy}`
 
   const pageSql = `
     WITH ${scopedCte}, ${filteredCte}

@@ -7,9 +7,9 @@
  * — iar o promoție programată, încă nepornită, nu apare pe /oferte la preț
  * întreg.
  *
- * Sursa unică pentru /store/catalog (pagina /oferte), filtrul „Redus acum” din
- * admin și „Scoate reducerea” (`removeLiveSalePrices`): ce se numără e exact
- * ce se șterge. Trebuie să rămână
+ * Sursa unică pentru filtrul „Redus acum” din admin, „Scoate reducerea”
+ * (`removeLiveSalePrices`) și perioada ofertei de pe pagina produsului
+ * (`/store/offer-periods`): ce se numără e exact ce se șterge. Trebuie să rămână
  * aliniată cu `isDiscounted` din storefront (`lib/util/sale.ts`), care dă
  * badge-ul.
  *
@@ -45,16 +45,12 @@ export const liveSalePricesSql = `
 export const discountedProductsSql = `
   SELECT live.product_id FROM (${liveSalePricesSql}) live`
 
-/** Tagul bifei „Ofertă specială": produsul e pe /oferte, primul, cu sau fără reducere. */
-export const OFFER_TAG = "oferta"
-
 /**
- * Tagul bifei „Ascuns de pe /oferte": produsul își păstrează reducerea (și
- * prețul tăiat), dar nu intră pe /oferte și nu primește badge-ul „Ofertă”.
- * „Ofertă specială” are întâietate — un produs bifat cu amândouă rămâne pe
- * /oferte. Aliniat cu `OFFER_EXCLUDE_TAG` din storefront (`lib/util/sale.ts`).
+ * Tagul bifei „Ofertă specială": singurul criteriu pentru /oferte, secțiunea
+ * Oferte de pe home și badge-ul „Ofertă". Aliniat cu `SALE_TAG` din storefront
+ * (`lib/util/sale.ts`).
  */
-export const OFFER_EXCLUDE_TAG = "fara-oferte"
+export const OFFER_TAG = "oferta"
 
 /** Produsele care poartă tagul legat la `tagBinding` (ex. `:sale_0`). */
 export const taggedProductsSql = (tagBinding: string) => `
@@ -65,11 +61,11 @@ export const taggedProductsSql = (tagBinding: string) => `
     AND pt.product_id IS NOT NULL`
 
 /**
- * Regula /oferte, ca predicat pe `p.id`: bifat „Ofertă specială” SAU (redus
- * acum ȘI nebifat „Ascuns de pe /oferte”). Folosită de /store/catalog și de
- * pagina „Oferte” din admin, ca cele două să numere la fel.
+ * Regula /oferte, ca predicat pe `p.id`: DOAR produsele bifate „Ofertă
+ * specială”. O reducere singură (preț tăiat) nu pune produsul pe /oferte —
+ * decizia utilizatorului din 23.11.2026, după o zi în care toate cele ~217 de
+ * produse reduse intrau automat. Folosită de /store/catalog și de pagina
+ * „Oferte” din admin, ca cele două să numere la fel.
  */
-export const offersPredicateSql = (offerBinding: string, excludeBinding: string) =>
-  `(p.id IN (${taggedProductsSql(offerBinding)})
-    OR (p.id IN (${discountedProductsSql})
-        AND p.id NOT IN (${taggedProductsSql(excludeBinding)})))`
+export const offersPredicateSql = (offerBinding: string) =>
+  `p.id IN (${taggedProductsSql(offerBinding)})`

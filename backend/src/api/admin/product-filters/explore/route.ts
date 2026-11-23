@@ -3,7 +3,6 @@ import { z } from "zod"
 
 import { escapeLike, foldSql, foldTerm, searchTerms } from "../../../../lib/catalog-search"
 import {
-  OFFER_EXCLUDE_TAG,
   OFFER_TAG,
   discountedProductsSql,
   offersPredicateSql,
@@ -57,16 +56,16 @@ const QuerySchema = z
       .transform((v) => (v ? v.toLowerCase() : undefined)),
     price: z.string().optional(),
     /**
-     * `yes` — produsele cu o reducere în vigoare (intră automat pe /oferte);
+     * `yes` — produsele cu o reducere în vigoare (preț tăiat pe site);
      * `no` — cele fără. Aceeași regulă ca magazinul: `discountedProductsSql`.
      */
     discount: z.enum(["yes", "no"]).optional(),
     /**
-     * Pagina „Oferte" din admin: `all` = exact ce e pe /oferte, `picked` =
-     * bifate „Ofertă specială", `discounted` = reduse acum și neascunse,
-     * `hidden` = bifate „Ascuns de pe /oferte".
+     * Pagina „Oferte" din admin: `all` = exact ce e pe /oferte (bifate
+     * „Ofertă specială"), `discounted` = toate cele reduse acum, `unpicked` =
+     * reduse acum dar nebifate (candidații pentru /oferte).
      */
-    offers: z.enum(["all", "picked", "discounted", "hidden"]).optional(),
+    offers: z.enum(["all", "discounted", "unpicked"]).optional(),
     sort: z
       .enum(["newest", "oldest", "title", "price_asc", "price_desc", "stock_asc", "stock_desc"])
       .default("newest"),
@@ -217,12 +216,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   if (q.offers) {
     const offer = bind(OFFER_TAG, "offer")
-    const exclude = bind(OFFER_EXCLUDE_TAG, "nooffer")
     const byView = {
-      all: offersPredicateSql(offer, exclude),
-      picked: `p.id IN (${taggedProductsSql(offer)})`,
-      discounted: `(p.id IN (${discountedProductsSql}) AND p.id NOT IN (${taggedProductsSql(exclude)}))`,
-      hidden: `p.id IN (${taggedProductsSql(exclude)})`,
+      all: offersPredicateSql(offer),
+      discounted: `p.id IN (${discountedProductsSql})`,
+      unpicked: `(p.id IN (${discountedProductsSql}) AND p.id NOT IN (${taggedProductsSql(offer)}))`,
     }
     scopeWhere.push(byView[q.offers])
   }

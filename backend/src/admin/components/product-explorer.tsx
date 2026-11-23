@@ -140,23 +140,18 @@ const categoryTree = (cats: FilterMeta["categories"]) => {
 const OFFER_VIEWS = [
   [
     "all",
-    "Toate ofertele",
-    "Exact ce apare pe /oferte: bifate „Ofertă specială” + cele cu preț promoțional.",
-  ],
-  [
-    "picked",
-    "Ofertă specială",
-    "Bifate în cardul „Marcaje produs”. Apar primele pe /oferte, chiar și fără reducere.",
+    "Pe /oferte",
+    "Exact ce apare pe /oferte și în secțiunea Oferte de pe home: produsele bifate „Ofertă specială”.",
   ],
   [
     "discounted",
     "Redus acum",
-    "Au preț promoțional în vigoare, sub prețul normal. Intră automat pe /oferte.",
+    "Toate produsele cu preț promoțional în vigoare (preț tăiat pe site), bifate sau nu.",
   ],
   [
-    "hidden",
-    "Ascunse",
-    "Bifate „Ascuns de pe /oferte”: își păstrează reducerea, dar nu apar pe /oferte.",
+    "unpicked",
+    "Reduse, nebifate",
+    "Au preț tăiat, dar nu apar pe /oferte pentru că nu sunt bifate „Ofertă specială”. Le poți bifa din bara de jos: Ofertă → Bifează.",
   ],
 ] as const
 type OfferView = (typeof OFFER_VIEWS)[number][0]

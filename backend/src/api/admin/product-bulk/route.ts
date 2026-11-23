@@ -6,7 +6,7 @@ import {
 } from "@medusajs/medusa/core-flows"
 import { z } from "zod"
 
-import { OFFER_EXCLUDE_TAG, OFFER_TAG } from "../../../lib/discounted-products"
+import { OFFER_TAG } from "../../../lib/discounted-products"
 import { removeLiveSalePrices } from "../../../lib/pricing"
 import { updateProductTags } from "../../../lib/product-tags-bulk"
 import { snapshotBeforeDelete } from "../../../lib/products/restore"
@@ -41,8 +41,6 @@ const ACTIONS = [
   "offer_add",
   "offer_remove",
   "offer_clear",
-  "offer_hide",
-  "offer_unhide",
   "delete",
 ] as const
 
@@ -149,16 +147,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           break
         }
 
-        // Bifa „Ofertă specială": doar tagul. Un produs debifat dar redus
-        // rămâne pe /oferte — pentru scoaterea completă e `offer_clear`.
-        // La bifare se scoate și „Ascuns de pe /oferte”, ca starea să fie clară.
+        // Bifa „Ofertă specială": doar tagul, adică prezența pe /oferte.
+        // Prețul promoțional rămâne; pentru el e `offer_clear`.
         case "offer_add":
-          done += (
-            await updateProductTags(req.scope, batch, {
-              add: [OFFER_TAG],
-              remove: [OFFER_EXCLUDE_TAG],
-            })
-          ).length
+          done += (await updateProductTags(req.scope, batch, { add: [OFFER_TAG] })).length
           break
         case "offer_remove":
           done += (await updateProductTags(req.scope, batch, { remove: [OFFER_TAG] })).length
@@ -172,22 +164,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           done += new Set([...untagged, ...unpriced]).size
           break
         }
-
-        // Scoate de pe /oferte păstrând reducerea: bifa „Ascuns de pe /oferte”
-        // și fără „Ofertă specială” (care ar avea întâietate) — într-o singură
-        // scriere per produs.
-        case "offer_hide":
-          done += (
-            await updateProductTags(req.scope, batch, {
-              add: [OFFER_EXCLUDE_TAG],
-              remove: [OFFER_TAG],
-            })
-          ).length
-          break
-
-        case "offer_unhide":
-          done += (await updateProductTags(req.scope, batch, { remove: [OFFER_EXCLUDE_TAG] })).length
-          break
 
         case "delete":
           await snapshotBeforeDelete(req.scope, batch)
