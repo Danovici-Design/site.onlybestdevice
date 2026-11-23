@@ -1,8 +1,78 @@
 diff --git a/dist/app.js b/dist/app.js
-index b7de0a149c86fe936d464b603767a77372aa7f0c..cc664ea8a44d748656656bba64c63b87675ad8ed 100644
+index b7de0a149c86fe936d464b603767a77372aa7f0c..e502aca2a6b546ff2fccce0e060d8a6d236d258f 100644
 --- a/dist/app.js
 +++ b/dist/app.js
-@@ -111023,6 +111023,7 @@ var init_upload_media_form_item = __esm({
+@@ -1,4 +1,69 @@
+ "use strict";
++// onlybestdevice: coloanele tabelelor de produse din listele de prețuri.
++// Titlul întreg (memoria, culoarea și modelul stau în el), prețul normal și
++// stocul, în locul coloanelor „Colecție" și „Canale de vânzare", care la noi
++// sunt mereu „-" și „Default Sales Channel".
++var obdPriceListColumns = (base, h, Thumb, productMinWidth = "min-w-[420px]") => {
++  const keep = base.filter(
++    (c) => c.id !== "product" && c.accessorKey !== "collection" && c.accessorKey !== "sales_channels"
++  );
++  const money = (n) => n == null ? "\u2014" : new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 }).format(n) + " lei";
++  const priceOf = (p) => {
++    const all = (p.variants || []).flatMap(
++      (v) => (v.prices || []).filter(
++        (x) => x.currency_code === "ron" && !x.price_list_id && !(x.rules && Object.keys(x.rules).length)
++      ).map((x) => x.amount)
++    );
++    return all.length ? Math.min(...all) : null;
++  };
++  // `inventory_quantity` vine null din lista de produse a adminului, deci
++  // stocul disponibil se calculează din nivelurile de inventar: stocat minus
++  // rezervat, împărțit la cantitatea cerută per variantă.
++  const stockOf = (p) => {
++    const vs = p.variants || [];
++    if (vs.some((v) => v.manage_inventory === false)) return "nelimitat";
++    let total = 0;
++    let known = false;
++    for (const v of vs) {
++      const items = v.inventory_items || [];
++      if (!items.length) continue;
++      known = true;
++      total += Math.max(0, Math.min(...items.map((it) => {
++        const lv = it.inventory?.location_levels || [];
++        const free = lv.reduce((s, l) => s + (l.stocked_quantity || 0) - (l.reserved_quantity || 0), 0);
++        return Math.floor(free / (it.required_quantity || 1));
++      })));
++    }
++    return known ? total : "\u2014";
++  };
++  return [
++    {
++      id: "product",
++      header: () => "Produs",
++      cell: ({ row }) => h(
++        "div",
++        { className: "flex " + productMinWidth + " items-center gap-x-3 py-2" },
++        h("div", { className: "w-fit flex-shrink-0" }, h(Thumb, { src: row.original.thumbnail })),
++        h("span", { title: row.original.title, className: "line-clamp-2 whitespace-normal" }, row.original.title)
++      )
++    },
++    {
++      id: "obd_price",
++      header: () => "Preț",
++      cell: ({ row }) => h("span", { className: "whitespace-nowrap" }, money(priceOf(row.original)))
++    },
++    {
++      id: "obd_stock",
++      header: () => "Stoc",
++      cell: ({ row }) => {
++        const s = stockOf(row.original);
++        return h("span", { className: s === 0 ? "text-ui-fg-error" : "" }, String(s));
++      }
++    },
++    ...keep
++  ];
++};
++
+ var __create = Object.create;
+ var __defProp = Object.defineProperty;
+ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+@@ -111023,6 +111088,7 @@ var init_upload_media_form_item = __esm({
        "image/gif",
        "image/webp",
        "image/heic",
@@ -10,7 +80,7 @@ index b7de0a149c86fe936d464b603767a77372aa7f0c..cc664ea8a44d748656656bba64c63b87
        "image/svg+xml"
      ];
      SUPPORTED_FORMATS_FILE_EXTENSIONS = [
-@@ -111031,6 +111032,7 @@ var init_upload_media_form_item = __esm({
+@@ -111031,6 +111097,7 @@ var init_upload_media_form_item = __esm({
        ".gif",
        ".webp",
        ".heic",
@@ -18,7 +88,7 @@ index b7de0a149c86fe936d464b603767a77372aa7f0c..cc664ea8a44d748656656bba64c63b87
        ".svg"
      ];
      UploadMediaFormItem = ({
-@@ -156497,6 +156499,20 @@ var init_use_price_list_grid_columns = __esm({
+@@ -156497,6 +156564,20 @@ var init_use_price_list_grid_columns = __esm({
              },
              disableHiding: true
            }),
@@ -39,7 +109,7 @@ index b7de0a149c86fe936d464b603767a77372aa7f0c..cc664ea8a44d748656656bba64c63b87
            ...createDataGridPriceColumns({
              currencies: currencies2.map((c) => c.currency_code),
              regions,
-@@ -156555,7 +156571,7 @@ var init_price_list_prices_form = __esm({
+@@ -156555,7 +156636,7 @@ var init_price_list_prices_form = __esm({
          id: ids.map((id2) => id2.id),
          limit: ids.length,
          // TODO: Remove exclusion once we avoid including unnecessary relations by default in the query config
@@ -48,7 +118,44 @@ index b7de0a149c86fe936d464b603767a77372aa7f0c..cc664ea8a44d748656656bba64c63b87
        });
        const { setCloseOnEscape } = useRouteModal();
        const { setValue: setValue2 } = form;
-@@ -158405,7 +158421,7 @@ var init_price_list_prices_add_prices_form = __esm({
+@@ -156649,7 +156730,7 @@ var init_price_list_products_form = __esm({
+         prefix: PREFIX12
+       });
+       const { products, count, isLoading, isError, error } = useProducts(
+-        searchParams,
++        { ...searchParams, fields: "+variants.inventory_items.required_quantity,+variants.inventory_items.inventory.location_levels.stocked_quantity,+variants.inventory_items.inventory.location_levels.reserved_quantity" },
+         {
+           placeholderData: import_react_query72.keepPreviousData
+         }
+@@ -156749,7 +156830,7 @@ var init_price_list_products_form = __esm({
+               );
+             }
+           }),
+-          ...base
++          ...obdPriceListColumns(base, require("react").createElement, Thumbnail)
+         ],
+         [base]
+       );
+@@ -157515,7 +157596,8 @@ var init_price_list_product_section = __esm({
+       const { products, count, isLoading, isError, error } = useProducts(
+         {
+           ...searchParams,
+-          price_list_id: [priceList.id]
++          price_list_id: [priceList.id],
++          fields: "+variants.inventory_items.required_quantity,+variants.inventory_items.inventory.location_levels.stocked_quantity,+variants.inventory_items.inventory.location_levels.reserved_quantity"
+         },
+         {
+           placeholderData: import_react_query73.keepPreviousData
+@@ -157728,7 +157810,7 @@ var init_price_list_product_section = __esm({
+               );
+             }
+           }),
+-          ...base,
++          ...obdPriceListColumns(base, require("react").createElement, Thumbnail, "min-w-[220px]"),
+           columnHelper38.display({
+             id: "actions",
+             cell: ({ row }) => /* @__PURE__ */ (0, import_jsx_runtime377.jsx)(ProductRowAction, { product: row.original, priceList })
+@@ -158405,7 +158487,7 @@ var init_price_list_prices_add_prices_form = __esm({
          id: ids.map((id2) => id2.id),
          limit: ids.length,
          // TODO: Remove exclusion once we avoid including unnecessary relations by default in the query config
@@ -57,7 +164,25 @@ index b7de0a149c86fe936d464b603767a77372aa7f0c..cc664ea8a44d748656656bba64c63b87
        });
        const { setValue: setValue2 } = form;
        const { setCloseOnEscape } = useRouteModal();
-@@ -159228,7 +159244,7 @@ var init_price_list_prices_edit = __esm({
+@@ -158511,7 +158593,7 @@ var init_price_list_prices_add_product_ids_form = __esm({
+         prefix: PREFIX14
+       });
+       const { products, count, isLoading, isError, error } = useProducts(
+-        searchParams,
++        { ...searchParams, fields: "+variants.inventory_items.required_quantity,+variants.inventory_items.inventory.location_levels.stocked_quantity,+variants.inventory_items.inventory.location_levels.reserved_quantity" },
+         {
+           placeholderData: import_react_query74.keepPreviousData
+         }
+@@ -158624,7 +158706,7 @@ var init_price_list_prices_add_product_ids_form = __esm({
+               return Component5;
+             }
+           }),
+-          ...base
++          ...obdPriceListColumns(base, require("react").createElement, Thumbnail)
+         ],
+         [base]
+       );
+@@ -159228,7 +159310,7 @@ var init_price_list_prices_edit = __esm({
          // Temporary until we support lazy loading in the DataGrid
          price_list_id: [id2],
          // TODO: Remove exclusion once we avoid including unnecessary relations by default in the query config
@@ -112,10 +237,16 @@ index 9a0dd6e15d0a30f2b965cf9123ecb840d4cb36bd..e050ea75c7a7a5a5f01c65a9040057a4
  ];
  var UploadMediaFormItem = ({
 diff --git a/dist/price-list-create-65KQJN5J.mjs b/dist/price-list-create-65KQJN5J.mjs
-index 96c6db058900919cb4e4605b535599ff86d954bc..82a81e22f375bace22fd2cc29af5c44e9e7713d2 100644
+index 96c6db058900919cb4e4605b535599ff86d954bc..6b3e49ece07ae93697b11ba389c1e62e5378d236 100644
 --- a/dist/price-list-create-65KQJN5J.mjs
 +++ b/dist/price-list-create-65KQJN5J.mjs
-@@ -432,7 +432,7 @@ var PriceListPricesForm = ({
+@@ -1,3 +1,5 @@
++import { createElement as obdH } from "react";
++import { Thumbnail as ObdThumbnail } from "./chunk-MNXC6Q4F.mjs";
+ import {
+   PriceListCustomerGroupRuleForm
+ } from "./chunk-JTK46PWY.mjs";
+@@ -432,7 +434,7 @@ var PriceListPricesForm = ({
      id: ids.map((id) => id.id),
      limit: ids.length,
      // TODO: Remove exclusion once we avoid including unnecessary relations by default in the query config
@@ -124,11 +255,202 @@ index 96c6db058900919cb4e4605b535599ff86d954bc..82a81e22f375bace22fd2cc29af5c44e
    });
    const { setCloseOnEscape } = useRouteModal();
    const { setValue } = form;
+@@ -516,7 +518,7 @@ var PriceListProductsForm = ({ form }) => {
+     prefix: PREFIX
+   });
+   const { products, count, isLoading, isError, error } = useProducts(
+-    searchParams,
++    { ...searchParams, fields: "+variants.inventory_items.required_quantity,+variants.inventory_items.inventory.location_levels.stocked_quantity,+variants.inventory_items.inventory.location_levels.reserved_quantity" },
+     {
+       placeholderData: keepPreviousData
+     }
+@@ -616,7 +618,7 @@ var useColumns = () => {
+           );
+         }
+       }),
+-      ...base
++      ...obdPriceListColumns(base, obdH, ObdThumbnail)
+     ],
+     [base]
+   );
+@@ -958,3 +960,68 @@ var PriceListCreate = () => {
+ export {
+   PriceListCreate as Component
+ };
++
++// onlybestdevice: coloanele tabelelor de produse din listele de prețuri.
++// Titlul întreg (memoria, culoarea și modelul stau în el), prețul normal și
++// stocul, în locul coloanelor „Colecție" și „Canale de vânzare", care la noi
++// sunt mereu „-" și „Default Sales Channel".
++var obdPriceListColumns = (base, h, Thumb, productMinWidth = "min-w-[420px]") => {
++  const keep = base.filter(
++    (c) => c.id !== "product" && c.accessorKey !== "collection" && c.accessorKey !== "sales_channels"
++  );
++  const money = (n) => n == null ? "\u2014" : new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 }).format(n) + " lei";
++  const priceOf = (p) => {
++    const all = (p.variants || []).flatMap(
++      (v) => (v.prices || []).filter(
++        (x) => x.currency_code === "ron" && !x.price_list_id && !(x.rules && Object.keys(x.rules).length)
++      ).map((x) => x.amount)
++    );
++    return all.length ? Math.min(...all) : null;
++  };
++  // `inventory_quantity` vine null din lista de produse a adminului, deci
++  // stocul disponibil se calculează din nivelurile de inventar: stocat minus
++  // rezervat, împărțit la cantitatea cerută per variantă.
++  const stockOf = (p) => {
++    const vs = p.variants || [];
++    if (vs.some((v) => v.manage_inventory === false)) return "nelimitat";
++    let total = 0;
++    let known = false;
++    for (const v of vs) {
++      const items = v.inventory_items || [];
++      if (!items.length) continue;
++      known = true;
++      total += Math.max(0, Math.min(...items.map((it) => {
++        const lv = it.inventory?.location_levels || [];
++        const free = lv.reduce((s, l) => s + (l.stocked_quantity || 0) - (l.reserved_quantity || 0), 0);
++        return Math.floor(free / (it.required_quantity || 1));
++      })));
++    }
++    return known ? total : "\u2014";
++  };
++  return [
++    {
++      id: "product",
++      header: () => "Produs",
++      cell: ({ row }) => h(
++        "div",
++        { className: "flex " + productMinWidth + " items-center gap-x-3 py-2" },
++        h("div", { className: "w-fit flex-shrink-0" }, h(Thumb, { src: row.original.thumbnail })),
++        h("span", { title: row.original.title, className: "line-clamp-2 whitespace-normal" }, row.original.title)
++      )
++    },
++    {
++      id: "obd_price",
++      header: () => "Preț",
++      cell: ({ row }) => h("span", { className: "whitespace-nowrap" }, money(priceOf(row.original)))
++    },
++    {
++      id: "obd_stock",
++      header: () => "Stoc",
++      cell: ({ row }) => {
++        const s = stockOf(row.original);
++        return h("span", { className: s === 0 ? "text-ui-fg-error" : "" }, String(s));
++      }
++    },
++    ...keep
++  ];
++};
+diff --git a/dist/price-list-detail-YJGSOV4X.mjs b/dist/price-list-detail-YJGSOV4X.mjs
+index 6435535c1293b0d4c1846e95deea29e5e8a318f5..39fc9fadba79ea1e7b113c98861de205660a7d3c 100644
+--- a/dist/price-list-detail-YJGSOV4X.mjs
++++ b/dist/price-list-detail-YJGSOV4X.mjs
+@@ -1,3 +1,5 @@
++import { createElement as obdH } from "react";
++import { Thumbnail as ObdThumbnail } from "./chunk-MNXC6Q4F.mjs";
+ import {
+   ListSummary
+ } from "./chunk-I3VB6NM2.mjs";
+@@ -296,7 +298,8 @@ var PriceListProductSection = ({
+   const { products, count, isLoading, isError, error } = useProducts(
+     {
+       ...searchParams,
+-      price_list_id: [priceList.id]
++      price_list_id: [priceList.id],
++      fields: "+variants.inventory_items.required_quantity,+variants.inventory_items.inventory.location_levels.stocked_quantity,+variants.inventory_items.inventory.location_levels.reserved_quantity"
+     },
+     {
+       placeholderData: keepPreviousData
+@@ -509,7 +512,7 @@ var useColumns = (priceList) => {
+           );
+         }
+       }),
+-      ...base,
++      ...obdPriceListColumns(base, obdH, ObdThumbnail, "min-w-[220px]"),
+       columnHelper.display({
+         id: "actions",
+         cell: ({ row }) => /* @__PURE__ */ jsx4(ProductRowAction, { product: row.original, priceList })
+@@ -557,3 +560,68 @@ export {
+   PriceListDetails as Component,
+   pricingLoader as loader
+ };
++
++// onlybestdevice: coloanele tabelelor de produse din listele de prețuri.
++// Titlul întreg (memoria, culoarea și modelul stau în el), prețul normal și
++// stocul, în locul coloanelor „Colecție" și „Canale de vânzare", care la noi
++// sunt mereu „-" și „Default Sales Channel".
++var obdPriceListColumns = (base, h, Thumb, productMinWidth = "min-w-[420px]") => {
++  const keep = base.filter(
++    (c) => c.id !== "product" && c.accessorKey !== "collection" && c.accessorKey !== "sales_channels"
++  );
++  const money = (n) => n == null ? "\u2014" : new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 }).format(n) + " lei";
++  const priceOf = (p) => {
++    const all = (p.variants || []).flatMap(
++      (v) => (v.prices || []).filter(
++        (x) => x.currency_code === "ron" && !x.price_list_id && !(x.rules && Object.keys(x.rules).length)
++      ).map((x) => x.amount)
++    );
++    return all.length ? Math.min(...all) : null;
++  };
++  // `inventory_quantity` vine null din lista de produse a adminului, deci
++  // stocul disponibil se calculează din nivelurile de inventar: stocat minus
++  // rezervat, împărțit la cantitatea cerută per variantă.
++  const stockOf = (p) => {
++    const vs = p.variants || [];
++    if (vs.some((v) => v.manage_inventory === false)) return "nelimitat";
++    let total = 0;
++    let known = false;
++    for (const v of vs) {
++      const items = v.inventory_items || [];
++      if (!items.length) continue;
++      known = true;
++      total += Math.max(0, Math.min(...items.map((it) => {
++        const lv = it.inventory?.location_levels || [];
++        const free = lv.reduce((s, l) => s + (l.stocked_quantity || 0) - (l.reserved_quantity || 0), 0);
++        return Math.floor(free / (it.required_quantity || 1));
++      })));
++    }
++    return known ? total : "\u2014";
++  };
++  return [
++    {
++      id: "product",
++      header: () => "Produs",
++      cell: ({ row }) => h(
++        "div",
++        { className: "flex " + productMinWidth + " items-center gap-x-3 py-2" },
++        h("div", { className: "w-fit flex-shrink-0" }, h(Thumb, { src: row.original.thumbnail })),
++        h("span", { title: row.original.title, className: "line-clamp-2 whitespace-normal" }, row.original.title)
++      )
++    },
++    {
++      id: "obd_price",
++      header: () => "Preț",
++      cell: ({ row }) => h("span", { className: "whitespace-nowrap" }, money(priceOf(row.original)))
++    },
++    {
++      id: "obd_stock",
++      header: () => "Stoc",
++      cell: ({ row }) => {
++        const s = stockOf(row.original);
++        return h("span", { className: s === 0 ? "text-ui-fg-error" : "" }, String(s));
++      }
++    },
++    ...keep
++  ];
++};
 diff --git a/dist/price-list-prices-add-QTFYAOJK.mjs b/dist/price-list-prices-add-QTFYAOJK.mjs
-index f74e91a5ca22e423b4de237f6a83a6bff8a31deb..fe59acb7dac719c1f53173a71352def808ee3740 100644
+index f74e91a5ca22e423b4de237f6a83a6bff8a31deb..41176661f94dfd5908fcb3421929cab1765b05c9 100644
 --- a/dist/price-list-prices-add-QTFYAOJK.mjs
 +++ b/dist/price-list-prices-add-QTFYAOJK.mjs
-@@ -124,7 +124,7 @@ var PriceListPricesAddPricesForm = ({
+@@ -1,3 +1,5 @@
++import { createElement as obdH } from "react";
++import { Thumbnail as ObdThumbnail } from "./chunk-MNXC6Q4F.mjs";
+ import {
+   PriceListCreateProductsSchema,
+   usePriceListCurrencyData,
+@@ -124,7 +126,7 @@ var PriceListPricesAddPricesForm = ({
      id: ids.map((id) => id.id),
      limit: ids.length,
      // TODO: Remove exclusion once we avoid including unnecessary relations by default in the query config
@@ -137,6 +459,93 @@ index f74e91a5ca22e423b4de237f6a83a6bff8a31deb..fe59acb7dac719c1f53173a71352def8
    });
    const { setValue } = form;
    const { setCloseOnEscape } = useRouteModal();
+@@ -220,7 +222,7 @@ var PriceListPricesAddProductIdsForm = ({
+     prefix: PREFIX
+   });
+   const { products, count, isLoading, isError, error } = useProducts(
+-    searchParams,
++    { ...searchParams, fields: "+variants.inventory_items.required_quantity,+variants.inventory_items.inventory.location_levels.stocked_quantity,+variants.inventory_items.inventory.location_levels.reserved_quantity" },
+     {
+       placeholderData: keepPreviousData
+     }
+@@ -333,7 +335,7 @@ var useColumns = () => {
+           return Component;
+         }
+       }),
+-      ...base
++      ...obdPriceListColumns(base, obdH, ObdThumbnail)
+     ],
+     [base]
+   );
+@@ -613,3 +615,68 @@ var PriceListProductsAdd = () => {
+ export {
+   PriceListProductsAdd as Component
+ };
++
++// onlybestdevice: coloanele tabelelor de produse din listele de prețuri.
++// Titlul întreg (memoria, culoarea și modelul stau în el), prețul normal și
++// stocul, în locul coloanelor „Colecție" și „Canale de vânzare", care la noi
++// sunt mereu „-" și „Default Sales Channel".
++var obdPriceListColumns = (base, h, Thumb, productMinWidth = "min-w-[420px]") => {
++  const keep = base.filter(
++    (c) => c.id !== "product" && c.accessorKey !== "collection" && c.accessorKey !== "sales_channels"
++  );
++  const money = (n) => n == null ? "\u2014" : new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 }).format(n) + " lei";
++  const priceOf = (p) => {
++    const all = (p.variants || []).flatMap(
++      (v) => (v.prices || []).filter(
++        (x) => x.currency_code === "ron" && !x.price_list_id && !(x.rules && Object.keys(x.rules).length)
++      ).map((x) => x.amount)
++    );
++    return all.length ? Math.min(...all) : null;
++  };
++  // `inventory_quantity` vine null din lista de produse a adminului, deci
++  // stocul disponibil se calculează din nivelurile de inventar: stocat minus
++  // rezervat, împărțit la cantitatea cerută per variantă.
++  const stockOf = (p) => {
++    const vs = p.variants || [];
++    if (vs.some((v) => v.manage_inventory === false)) return "nelimitat";
++    let total = 0;
++    let known = false;
++    for (const v of vs) {
++      const items = v.inventory_items || [];
++      if (!items.length) continue;
++      known = true;
++      total += Math.max(0, Math.min(...items.map((it) => {
++        const lv = it.inventory?.location_levels || [];
++        const free = lv.reduce((s, l) => s + (l.stocked_quantity || 0) - (l.reserved_quantity || 0), 0);
++        return Math.floor(free / (it.required_quantity || 1));
++      })));
++    }
++    return known ? total : "\u2014";
++  };
++  return [
++    {
++      id: "product",
++      header: () => "Produs",
++      cell: ({ row }) => h(
++        "div",
++        { className: "flex " + productMinWidth + " items-center gap-x-3 py-2" },
++        h("div", { className: "w-fit flex-shrink-0" }, h(Thumb, { src: row.original.thumbnail })),
++        h("span", { title: row.original.title, className: "line-clamp-2 whitespace-normal" }, row.original.title)
++      )
++    },
++    {
++      id: "obd_price",
++      header: () => "Preț",
++      cell: ({ row }) => h("span", { className: "whitespace-nowrap" }, money(priceOf(row.original)))
++    },
++    {
++      id: "obd_stock",
++      header: () => "Stoc",
++      cell: ({ row }) => {
++        const s = stockOf(row.original);
++        return h("span", { className: s === 0 ? "text-ui-fg-error" : "" }, String(s));
++      }
++    },
++    ...keep
++  ];
++};
 diff --git a/dist/price-list-prices-edit-7XJQUM2F.mjs b/dist/price-list-prices-edit-7XJQUM2F.mjs
 index 52c53273dd940f6730e7c9000088853d65f13978..d11513ecb27ebe3ac1f5d75f62df4140ab625bcd 100644
 --- a/dist/price-list-prices-edit-7XJQUM2F.mjs
