@@ -4,7 +4,7 @@
  *
  * După rulare, operatorul adaugă doar produsele și prețurile, din Admin >
  * Liste de prețuri > Black Weekend. Prețurile intră și ies singure la datele
- * listei, iar produsele din ea apar singure pe /black-weekend cât timp lista e
+ * listei, iar produsele din ea apar singure pe /black-week cât timp lista e
  * în desfășurare. Datele se pot muta apoi direct din Admin: pagina le citește
  * din listă (`/store/campaign`), nu din cod.
  *

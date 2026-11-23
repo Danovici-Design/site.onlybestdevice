@@ -6,7 +6,7 @@ import { CAMPAIGN_PRICE_LIST_TITLE } from "../../../lib/campaign"
 /**
  * GET /store/campaign
  *
- * Datele campaniei (Black Weekend), citite din price list-ul ei. Storefront-ul
+ * Datele campaniei (Black Week pe site), citite din price list-ul ei. Storefront-ul
  * își ia de aici numărătoarea, textul cu perioada și momentul în care apar
  * linkurile din meniu — deci mutarea datelor din Admin > Liste de prețuri e
  * suficientă, fără deploy.

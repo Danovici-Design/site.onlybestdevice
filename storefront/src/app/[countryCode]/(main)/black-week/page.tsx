@@ -26,9 +26,9 @@ const display = Archivo({
 const PAGE_SIZE = 24
 
 export const metadata: Metadata = {
-  title: "Black Weekend: oferte la telefoane, laptopuri și accesorii",
+  title: "Black Week: oferte la telefoane, laptopuri și accesorii",
   description:
-    "Black Weekend la Onlybestdevice: telefoane, laptopuri, tablete și accesorii la preț redus, cu garanție 24 de luni și plată cu cardul sau în rate.",
+    "Black Week la Onlybestdevice: telefoane, laptopuri, tablete și accesorii la preț redus, cu garanție 24 de luni și plată cu cardul sau în rate.",
   alternates: canonical(CAMPAIGN.path),
   openGraph: {
     type: "website",
@@ -61,7 +61,7 @@ type Props = {
  * Datele (numărătoarea, faza) vin tot din price list, prin `getCampaign`: se
  * mută din Admin > Liste de prețuri, fără deploy.
  */
-export default async function BlackWeekendPage(props: Props) {
+export default async function BlackWeekPage(props: Props) {
   const { countryCode } = await props.params
   const { category, page: pageParam } = await props.searchParams
   const page = Math.max(1, parseInt(pageParam ?? "1") || 1)

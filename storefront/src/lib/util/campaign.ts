@@ -1,5 +1,5 @@
 /**
- * Campania curentă (Black Weekend).
+ * Campania curentă (Black Week).
  *
  * Numele, adresa și titlul price list-ului stau aici; DATELE nu: se citesc din
  * price list-ul din Admin, prin `/store/campaign`, ca mutarea campaniei din
@@ -7,8 +7,10 @@
  * aliniat cu `CAMPAIGN_PRICE_LIST_TITLE` din `backend/src/lib/campaign.ts`.
  */
 export const CAMPAIGN = {
-  name: "Black Weekend",
-  path: "/black-weekend",
+  name: "Black Week",
+  path: "/black-week",
+  // Titlul listei din Admin. Rămâne „Black Weekend" (așa a fost creată pe
+  // prod); pe site campania se numește „Black Week".
   priceList: "Black Weekend",
 }
 

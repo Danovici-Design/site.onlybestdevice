@@ -1,5 +1,5 @@
 /*
- * Pagina campaniei (Black Weekend): un ecran OLED stins, negru pur. Lumina vine doar de la
+ * Pagina campaniei (Black Week): un ecran OLED stins, negru pur. Lumina vine doar de la
  * titlurile în portocaliul brandului și de la pozele produselor pe fond alb.
  * Portocaliul și rozul sunt capetele gradientului din pastila logo-ului.
  */
@@ -32,9 +32,9 @@
 }
 
 .bf-wordmark {
-  /* „Weekend" umple lățimea pe ecrane înguste; pe cele late plafonul de
+  /* „Black" umple lățimea pe ecrane înguste; pe cele late plafonul de
      înălțime păstrează numărătoarea în primul ecran. */
-  font-size: min(17vw, 28svh);
+  font-size: min(26vw, 28svh);
   line-height: 0.92;
   letter-spacing: -0.045em;
   margin-left: -0.05em;
