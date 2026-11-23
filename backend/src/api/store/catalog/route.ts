@@ -14,6 +14,7 @@ import {
 } from "../../../lib/product-filters/config"
 import { matchKey, numericSortKey } from "../../../lib/product-filters/normalize"
 import { escapeLike, foldSql, foldTerm, searchTerms } from "../../../lib/catalog-search"
+import { discountedProductsSql } from "../../../lib/discounted-products"
 
 /**
  * Catalog filtrat, cu fațete numărate în SQL.
@@ -66,11 +67,9 @@ const QuerySchema = z.object({
   /** Interval de preț „min-max"; capetele sunt opționale („-500", „100-"). */
   price: z.string().optional(),
   /**
-   * Doar produsele bifate „La ofertă" în admin (tagul `oferta`).
-   *
-   * Nu se deduce din `compare_at_price`: aproape tot catalogul are un preț
-   * tăiat, deci criteriul acela ar întoarce tot magazinul. Oferta e o selecție
-   * făcută manual, nu o proprietate a prețului.
+   * Ofertele: produsele bifate „Ofertă" în admin (tagul `oferta`) PLUS cele
+   * care au acum un preț promoțional real — vezi `discountedProductsSql`.
+   * Bifatele vin primele la sortarea implicită.
    */
   sale: z
     .union([z.literal("true"), z.literal("1"), z.literal("false"), z.literal("0")])
@@ -141,6 +140,7 @@ const CATEGORY_FACET_BLOCKLIST = new Set(["fara categorie", "oferte"])
  * (`lib/util/sale.ts`).
  */
 const SALE_TAG = "oferta"
+
 
 /** Cheia filtrului de marcă — numele lui se scot din fațeta „Categorie". */
 const BRAND_KEY = "brand"
@@ -337,15 +337,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
   // Oferta îngustează SCOPE-ul, nu setul filtrat: pe /oferte fațetele și
   // intervalul de preț trebuie să descrie ofertele, nu tot catalogul.
-  if (q.sale) {
-    scopeWhere.push(
-      `p.id IN (
+  // Bifa „Ofertă" SAU o reducere în vigoare; bifatele sunt marcate în `picked`,
+  // ca selecția echipei să rămână în fața listei, nu îngropată printre ~200 de
+  // produse reduse.
+  const pickedSql = `p.id IN (
         SELECT pt.product_id
         FROM product_tags pt
         JOIN product_tag t ON t.id = pt.product_tag_id AND t.deleted_at IS NULL
         WHERE LOWER(t.value) = ${bind(SALE_TAG, "sale")}
       )`
-    )
+  if (q.sale) {
+    scopeWhere.push(`(${pickedSql} OR p.id IN (${discountedProductsSql}))`)
   }
 
   // Campania îngustează scope-ul la fel ca oferta, ca fațetele să descrie lista.
@@ -461,7 +463,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
              p.title,
              p.created_at,
              MIN(ep.amount) AS price,
-             ${inStockSql} AS in_stock
+             ${inStockSql} AS in_stock,
+             ${q.sale ? pickedSql : "FALSE"} AS picked
       FROM product p
       LEFT JOIN product_variant v ON v.product_id = p.id AND v.deleted_at IS NULL
       LEFT JOIN product_variant_price_set vps ON vps.variant_id = v.id
@@ -656,7 +659,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   // Stocul trece înaintea oricărui alt criteriu, inclusiv relevanța la căutare
   // și sortarea după preț: un produs epuizat nu are ce căuta pe primul ecran.
-  const orderBy = `in_stock DESC, ${relevance}${baseOrderBy}`
+  // Pe /oferte, la sortarea implicită, produsele bifate „Ofertă" vin înaintea
+  // celor doar reduse. Sortarea după preț cerută explicit rămâne după preț.
+  const picked = q.sale && q.sort === "created_at" ? "picked DESC, " : ""
+  const orderBy = `in_stock DESC, ${relevance}${picked}${baseOrderBy}`
 
   const pageSql = `
     WITH ${scopedCte}, ${filteredCte}

@@ -11,6 +11,7 @@ import {
   Popover,
   Select,
   Table,
+  Tabs,
   Text,
   clx,
   toast,
@@ -101,7 +102,7 @@ const SORTS = [
 ] as const
 
 const TAGS = [
-  ["oferta", "La ofertă"],
+  ["oferta", "Ofertă specială"],
   ["recomandat", "Recomandat"],
 ] as const
 
@@ -135,9 +136,40 @@ const categoryTree = (cats: FilterMeta["categories"]) => {
   return out
 }
 
-const ProductExplorer = () => {
+/** Taburile paginii „Oferte"; valoarea e parametrul `offers` al /explore. */
+const OFFER_VIEWS = [
+  [
+    "all",
+    "Toate ofertele",
+    "Exact ce apare pe /oferte: bifate „Ofertă specială” + cele cu preț promoțional.",
+  ],
+  [
+    "picked",
+    "Ofertă specială",
+    "Bifate în cardul „Marcaje produs”. Apar primele pe /oferte, chiar și fără reducere.",
+  ],
+  [
+    "discounted",
+    "Redus acum",
+    "Au preț promoțional în vigoare, sub prețul normal. Intră automat pe /oferte.",
+  ],
+] as const
+type OfferView = (typeof OFFER_VIEWS)[number][0]
+
+type ProductExplorerProps = {
+  /**
+   * Lista restrânsă la oferte (pagina „Oferte" de sub Produse): antetul devine
+   * „Oferte” cu taburi, iar fiecare cerere poartă `offers=<tab>`.
+   */
+  offers?: boolean
+}
+
+const ProductExplorer = ({ offers = false }: ProductExplorerProps) => {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
+  const offerView: OfferView | null = offers
+    ? (OFFER_VIEWS.find(([v]) => v === params.get("offers"))?.[0] ?? "all")
+    : null
   const [data, setData] = useState<ExploreResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [meta, setMeta] = useState<FilterMeta | null>(null)
@@ -188,6 +220,7 @@ const ProductExplorer = () => {
     setLoading(true)
     const qs = new URLSearchParams(queryString)
     qs.set("limit", String(PAGE_SIZE))
+    if (offerView) qs.set("offers", offerView)
     filtersApi<ExploreResponse>(`/explore?${qs}`)
       .then((res) => !cancelled && setData(res))
       .catch((err) => !cancelled && toast.error(err.message))
@@ -195,7 +228,7 @@ const ProductExplorer = () => {
     return () => {
       cancelled = true
     }
-  }, [queryString, refresh])
+  }, [queryString, refresh, offerView])
 
   // Căutarea ajunge în URL după o scurtă pauză, nu la fiecare tastă.
   useEffect(() => {
@@ -233,6 +266,7 @@ const ProductExplorer = () => {
   const stock = params.get("stock")
   const hidden = params.get("hidden")
   const tag = params.get("tag")
+  const discount = params.get("discount")
   const price = params.get("price")
   const priceSel = price
     ? {
@@ -292,6 +326,21 @@ const ProductExplorer = () => {
       options: TAGS.map(([value, label]) => ({ value, label })),
       onToggle: single("tag", tag),
       onClear: () => setOne("tag", null),
+    },
+    {
+      // Ce intră automat pe /oferte: preț promoțional în vigoare, sub prețul
+      // normal. Bifa „Ofertă specială” e separată, în „Selecție”.
+      kind: "choice",
+      id: "discount",
+      group: "general",
+      label: "Reducere",
+      selected: discount ? [discount] : [],
+      options: [
+        { value: "yes", label: "Redus acum" },
+        { value: "no", label: "Fără reducere" },
+      ],
+      onToggle: single("discount", discount),
+      onClear: () => setOne("discount", null),
     },
     {
       kind: "choice",
@@ -395,6 +444,7 @@ const ProductExplorer = () => {
       const qs = new URLSearchParams(queryString)
       qs.delete("page")
       qs.set("ids_only", "true")
+      if (offerView) qs.set("offers", offerView)
       const { ids } = await filtersApi<{ ids: string[] }>(`/explore?${qs}`)
       setSelected(new Set(ids))
     } catch (err: any) {
@@ -415,20 +465,41 @@ const ProductExplorer = () => {
     <Container className="divide-y p-0">
       <style>{SELECT_SCROLLBAR_CSS}</style>
       {/* Antetul listei native, cu aceleași acțiuni (rutele-copil ale /products). */}
-      <div className="flex items-center justify-between px-6 py-4">
-        <Heading level="h1">Produse</Heading>
-        <div className="flex items-center gap-x-2">
-          <Button size="small" variant="secondary" asChild>
-            <Link to="/products/export">Export</Link>
-          </Button>
-          <Button size="small" variant="secondary" asChild>
-            <Link to="/products/import">Import</Link>
-          </Button>
-          <Button size="small" variant="secondary" asChild>
-            <Link to="/products/create">Creează</Link>
-          </Button>
+      {offerView ? (
+        <div className="flex flex-col gap-y-3 px-6 py-4">
+          <Heading level="h1">Oferte</Heading>
+          <Tabs
+            value={offerView}
+            onValueChange={(v) => setOne("offers", v === "all" ? null : v)}
+          >
+            <Tabs.List>
+              {OFFER_VIEWS.map(([value, label]) => (
+                <Tabs.Trigger key={value} value={value}>
+                  {label}
+                </Tabs.Trigger>
+              ))}
+            </Tabs.List>
+          </Tabs>
+          <Text size="small" className="text-ui-fg-subtle">
+            {OFFER_VIEWS.find(([v]) => v === offerView)?.[2]}
+          </Text>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between px-6 py-4">
+          <Heading level="h1">Produse</Heading>
+          <div className="flex items-center gap-x-2">
+            <Button size="small" variant="secondary" asChild>
+              <Link to="/products/export">Export</Link>
+            </Button>
+            <Button size="small" variant="secondary" asChild>
+              <Link to="/products/import">Import</Link>
+            </Button>
+            <Button size="small" variant="secondary" asChild>
+              <Link to="/products/create">Creează</Link>
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Un singur rând: căutare, categorie, filtrele alese, „+ Filtru". */}
       <div className="flex flex-wrap items-center gap-2 px-6 py-4">

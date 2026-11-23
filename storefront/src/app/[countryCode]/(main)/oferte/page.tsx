@@ -30,9 +30,9 @@ type Params = {
 /**
  * Lista ofertelor curente.
  *
- * Selecția vine din bifa „La ofertă" de pe produs (tagul `oferta`), nu din
- * prețul tăiat: aproape tot catalogul are `compare_at_price`, deci un criteriu
- * automat ar aduce aici tot magazinul.
+ * Produsele bifate „Ofertă specială" în admin (tagul `oferta`), primele, plus
+ * toate cele cu un preț promoțional în vigoare. Regula e în ruta
+ * `/store/catalog` (`sale=true`).
  */
 export default async function OffersPage(props: Params) {
   const params = await props.params

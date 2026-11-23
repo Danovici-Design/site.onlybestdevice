@@ -2,6 +2,7 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "zod"
 
 import { escapeLike, foldSql, foldTerm, searchTerms } from "../../../../lib/catalog-search"
+import { discountedProductsSql } from "../../../../lib/discounted-products"
 import { badRequest, deps } from "../../../../lib/product-filters/admin"
 import {
   attributesForCategories,
@@ -34,6 +35,8 @@ const NONE = "__none"
 const FILTER_PREFIX = "f_"
 const BRAND_KEY = "brand"
 const CURRENCY = "ron"
+/** Tagul bifei „Ofertă specială" — același ca `SALE_TAG` din /store/catalog. */
+const SALE_TAG = "oferta"
 
 const QuerySchema = z
   .object({
@@ -49,6 +52,17 @@ const QuerySchema = z
       .optional()
       .transform((v) => (v ? v.toLowerCase() : undefined)),
     price: z.string().optional(),
+    /**
+     * `yes` — produsele cu o reducere în vigoare (intră automat pe /oferte);
+     * `no` — cele fără. Aceeași regulă ca magazinul: `discountedProductsSql`.
+     */
+    discount: z.enum(["yes", "no"]).optional(),
+    /**
+     * Pagina „Oferte" din admin: `all` = exact ce e pe /oferte (bifa „Ofertă
+     * specială" SAU redus acum), `picked` = doar bifatele, `discounted` = doar
+     * cele reduse acum.
+     */
+    offers: z.enum(["all", "picked", "discounted"]).optional(),
     sort: z
       .enum(["newest", "oldest", "title", "price_asc", "price_desc", "stock_asc", "stock_desc"])
       .default("newest"),
@@ -194,6 +208,28 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         JOIN product_tag t ON t.id = pt.product_tag_id AND t.deleted_at IS NULL
         WHERE LOWER(t.value) = ${bind(q.tag, "tag")}
       )`
+    )
+  }
+
+  if (q.offers) {
+    const pickedSql = `p.id IN (
+        SELECT pt.product_id
+        FROM product_tags pt
+        JOIN product_tag t ON t.id = pt.product_tag_id AND t.deleted_at IS NULL
+        WHERE LOWER(t.value) = ${bind(SALE_TAG, "offer")}
+      )`
+    const discountedSql = `p.id IN (${discountedProductsSql})`
+    scopeWhere.push(
+      q.offers === "picked"
+        ? pickedSql
+        : q.offers === "discounted"
+          ? discountedSql
+          : `(${pickedSql} OR ${discountedSql})`
+    )
+  }
+  if (q.discount) {
+    scopeWhere.push(
+      `p.id ${q.discount === "yes" ? "IN" : "NOT IN"} (${discountedProductsSql})`
     )
   }
 

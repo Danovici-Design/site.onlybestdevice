@@ -168,8 +168,6 @@ const ProductPriceWidget = ({ data: product }: DetailWidgetProps<AdminProduct>) 
     }
   }
 
-  const onSale = !!data && data.variants.some((v) => v.sale_price != null)
-  const missingSaleTag = onSale && !hasTag(product, "oferta")
 
   /* ---------------- Garanția extinsă ---------------- */
 
@@ -370,14 +368,9 @@ const ProductPriceWidget = ({ data: product }: DetailWidgetProps<AdminProduct>) 
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
               <Text size="small" className="text-ui-fg-subtle">
-                Golește câmpul de promoție ca să scoți produsul de la reducere.
+                Cu preț promoțional, produsul intră pe <code>/oferte</code>. Golește
+                câmpul ca să-l scoți de la reducere.
               </Text>
-              {missingSaleTag && (
-                <Text size="small" className="text-ui-fg-subtle">
-                  Prețul tăiat apare pe site, dar produsul nu e bifat „La ofertă", deci
-                  nu intră pe <code>/oferte</code>.
-                </Text>
-              )}
               {clearedPrice && (
                 <Text size="small" className="text-ui-fg-error">
                   Prețul normal nu poate rămâne gol.

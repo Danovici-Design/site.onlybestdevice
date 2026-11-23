@@ -53,15 +53,15 @@ const FLAGS: Flag[] = [
     offMessage: "Produs scos din Produse recomandate",
   },
   {
-    // Aproape tot catalogul are un preț tăiat (`compare_at_price`), deci „are
-    // reducere" nu poate fi criteriul de listare — pagina /oferte ar deveni tot
-    // catalogul. Oferta e o selecție redacțională: intră doar ce e bifat aici.
+    // Pe /oferte intră automat și produsele cu un preț promoțional în vigoare
+    // (cardul „Preț"). Bifa e selecția echipei: pune în ofertă și un produs
+    // fără reducere, iar bifatele stau primele în listă.
     tag: "oferta",
     icon: <ReceiptPercent />,
-    title: "Ofertă",
-    hint: "Intră pe /oferte și primește badge-ul „Ofertă”.",
+    title: "Ofertă specială",
+    hint: "Primul pe /oferte, cu badge-ul „Ofertă”.",
     details:
-      "Doar produsele bifate apar pe pagina /oferte și primesc badge-ul „Ofertă” în listări. Prețul tăiat singur nu e suficient — aproape toate produsele au unul, așa că selecția o faci de aici.",
+      "Produsele cu preț promoțional apar oricum pe /oferte. Bifa pune produsul acolo și fără reducere și îl urcă în fața listei, înaintea celor doar reduse. Debifat, un produs redus rămâne pe /oferte cât timp are prețul promoțional.",
     onMessage: "Produs adăugat la Oferte",
     offMessage: "Produs scos din Oferte",
   },
