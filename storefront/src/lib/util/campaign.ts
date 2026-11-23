@@ -9,9 +9,9 @@
 export const CAMPAIGN = {
   name: "Black Week",
   path: "/black-week",
-  // Titlul listei din Admin. Rămâne „Black Weekend" (așa a fost creată pe
-  // prod); pe site campania se numește „Black Week".
-  priceList: "Black Weekend",
+  // Titlul listei din Admin, exact. Redenumirea ei în Admin rupe legătura:
+  // linkurile dispar și pagina nu mai listează produse.
+  priceList: "Black Week",
 }
 
 /** Perioada campaniei, în milisecunde (inclusiv capătul). */
