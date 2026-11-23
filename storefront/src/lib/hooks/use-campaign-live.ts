@@ -6,6 +6,7 @@ import {
   getCampaignPhase,
   parseCampaign,
   type CampaignDates,
+  type CampaignPhase,
 } from "@lib/util/campaign"
 
 /** Plafonul lui `setTimeout`: peste el, timer-ul pornește imediat. */
@@ -13,9 +14,24 @@ const MAX_TIMEOUT_MS = 2 ** 31 - 1
 /** Cât de vechi pot fi datele până le cerem din nou la revenirea în pagină. */
 const REFRESH_AFTER_MS = 5 * 60_000
 
-type Snapshot = { live: boolean; campaign: CampaignDates | null }
+type Snapshot = {
+  /** Campania e în desfășurare (prețurile listei se aplică). */
+  live: boolean
+  /**
+   * Linkurile din meniu se arată: din momentul în care lista e programată
+   * (anunț, „începe pe…") până la final.
+   */
+  visible: boolean
+  phase: CampaignPhase
+  campaign: CampaignDates | null
+}
 
-const SERVER_SNAPSHOT: Snapshot = { live: false, campaign: null }
+const SERVER_SNAPSHOT: Snapshot = {
+  live: false,
+  visible: false,
+  phase: "ended",
+  campaign: null,
+}
 
 const listeners = new Set<() => void>()
 let timer: number | undefined
@@ -27,9 +43,14 @@ let inFlight = false
 // Obiectul se schimbă doar când se schimbă ceva, altfel useSyncExternalStore
 // ar re-randa la nesfârșit.
 const recompute = () => {
-  const live = getCampaignPhase(campaign, Date.now()) === "live"
-  if (live !== snapshot.live || campaign !== snapshot.campaign) {
-    snapshot = { live, campaign }
+  const phase = getCampaignPhase(campaign, Date.now())
+  if (phase !== snapshot.phase || campaign !== snapshot.campaign) {
+    snapshot = {
+      live: phase === "live",
+      visible: phase !== "ended",
+      phase,
+      campaign,
+    }
   }
 }
 
@@ -97,8 +118,9 @@ const subscribe = (listener: () => void) => {
 }
 
 /**
- * Spune dacă linkurile de campanie din meniu trebuie afișate, plus datele
- * campaniei (pentru textul cu perioada).
+ * Spune dacă linkurile de campanie din meniu trebuie afișate (`visible`: de la
+ * programarea listei până la final, deci și ca anunț înainte de start), faza
+ * și datele campaniei (pentru textul cu perioada).
  *
  * Se decide doar în browser: nav-ul stă în layout-ul prerandat, deci o verificare
  * pe server ar rămâne înghețată până la următorul build. Datele vin din

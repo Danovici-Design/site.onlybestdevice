@@ -15,7 +15,11 @@ import {
 import { ReactNode, useState } from "react"
 
 import { useCampaignLive } from "@lib/hooks/use-campaign-live"
-import { CAMPAIGN, formatCampaignDates } from "@lib/util/campaign"
+import {
+  CAMPAIGN,
+  formatCampaignDates,
+  formatCampaignStart,
+} from "@lib/util/campaign"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import CountrySelect from "../country-select"
 import LanguageSelect from "../language-select"
@@ -43,7 +47,8 @@ const SideMenu = ({ regions, locales, cartIndicator }: SideMenuProps) => {
   const [open, setOpen] = useState(false)
   const countryToggleState = useToggleState()
   const languageToggleState = useToggleState()
-  const { live: campaignLive, campaign } = useCampaignLive()
+  const { visible: campaignVisible, live: campaignLive, campaign } =
+    useCampaignLive()
 
   const close = () => setOpen(false)
 
@@ -96,7 +101,7 @@ const SideMenu = ({ regions, locales, cartIndicator }: SideMenuProps) => {
           </div>
 
           <nav className="flex-1 overflow-y-auto overscroll-contain px-7 pt-6 pb-6">
-            {campaignLive && campaign && (
+            {campaignVisible && campaign && (
               <LocalizedClientLink
                 href={CAMPAIGN.path}
                 prefetch={false}
@@ -112,7 +117,9 @@ const SideMenu = ({ regions, locales, cartIndicator }: SideMenuProps) => {
                     {CAMPAIGN.name}
                   </span>
                   <span className="block text-xs text-white/60">
-                    Reduceri, {formatCampaignDates(campaign)}
+                    {campaignLive
+                      ? `Reduceri, ${formatCampaignDates(campaign)}`
+                      : `Începe pe ${formatCampaignStart(campaign)}`}
                   </span>
                 </span>
                 <CaretRight

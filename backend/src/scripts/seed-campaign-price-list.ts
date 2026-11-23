@@ -38,7 +38,7 @@ import { CAMPAIGN_PRICE_LIST_TITLE } from "../lib/campaign"
 
 const TITLE = CAMPAIGN_PRICE_LIST_TITLE
 const DESCRIPTION = "Reducerile de Black Weekend."
-const STARTS_AT = "2026-11-27T00:00:00+02:00"
+const STARTS_AT = "2026-11-24T00:00:00+02:00"
 const ENDS_AT = "2026-11-29T23:59:59+02:00"
 
 const DRY_RUN = /^(1|true|yes)$/i.test(process.env.DRY_RUN ?? "")

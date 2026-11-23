@@ -3,7 +3,7 @@ import type { ExecArgs } from "@medusajs/framework/types"
 import seedCampaignPriceList from "../scripts/seed-campaign-price-list"
 
 /**
- * Creează lista de prețuri „Black Weekend” (27–29 noiembrie 2026) la primul
+ * Creează lista de prețuri „Black Weekend” (24–29 noiembrie 2026) la primul
  * `db:migrate` — pe prod, la pornirea containerului (`RUN_MIGRATIONS`), deci
  * lista apare singură la deploy, fără `medusa exec` rulat de mână.
  *

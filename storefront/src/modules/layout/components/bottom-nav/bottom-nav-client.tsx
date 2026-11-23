@@ -42,7 +42,7 @@ export default function BottomNavClient({ cartIndicator }: Props) {
   const { open: openCart } = useCartDrawer()
   const { decided } = useConsent()
   const footerInView = useFooterInView()
-  const { live: campaignLive } = useCampaignLive()
+  const { visible: campaignVisible } = useCampaignLive()
   const visible = scrolled && decided && !footerInView
   const stripped = pathname.replace(new RegExp(`^/${countryCode}`), "") || "/"
 
@@ -57,7 +57,7 @@ export default function BottomNavClient({ cartIndicator }: Props) {
       icon: Storefront,
       matchPrefixes: ["/store", "/categories", "/collections", "/products"],
     },
-    ...(campaignLive
+    ...(campaignVisible
       ? [
           {
             href: CAMPAIGN.path,

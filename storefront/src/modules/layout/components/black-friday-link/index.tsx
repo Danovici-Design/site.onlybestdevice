@@ -15,8 +15,8 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
  * deci primește chenar.
  */
 export default function BlackFridayLink({ overlay }: { overlay: boolean }) {
-  const { live } = useCampaignLive()
-  if (!live) return null
+  const { visible } = useCampaignLive()
+  if (!visible) return null
 
   return (
     <LocalizedClientLink

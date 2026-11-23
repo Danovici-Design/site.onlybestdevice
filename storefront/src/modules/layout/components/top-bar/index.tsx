@@ -17,7 +17,11 @@ import {
 import { useEffect, useState } from "react"
 
 import { useCampaignLive } from "@lib/hooks/use-campaign-live"
-import { CAMPAIGN, formatCampaignDates } from "@lib/util/campaign"
+import {
+  CAMPAIGN,
+  formatCampaignDates,
+  formatCampaignStart,
+} from "@lib/util/campaign"
 import { COMPANY } from "@lib/util/company-info"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
@@ -40,15 +44,16 @@ const ROTATION_MS = 5000
 
 const TopBar = () => {
   const [index, setIndex] = useState(0)
-  const { live: campaignLive, campaign } = useCampaignLive()
+  const { visible: campaignVisible, live: campaignLive, campaign } =
+    useCampaignLive()
 
   useEffect(() => {
-    if (campaignLive) return
+    if (campaignVisible) return
     const id = setInterval(() => {
       setIndex((i) => (i + 1) % messages.length)
     }, ROTATION_MS)
     return () => clearInterval(id)
-  }, [campaignLive])
+  }, [campaignVisible])
 
   const prev = () =>
     setIndex((i) => (i - 1 + messages.length) % messages.length)
@@ -88,9 +93,9 @@ const TopBar = () => {
         </a>
       </div>
 
-      {/* Cât ține campania, mesajul e fix: un link care dispare după 5 secunde
+      {/* De la anunț până la finalul campaniei, mesajul e fix: un link care dispare după 5 secunde
           ar fi ratat tocmai pe mobil, unde aici e primul lucru de pe pagină. */}
-      {campaignLive && campaign ? (
+      {campaignVisible && campaign ? (
         <LocalizedClientLink
           href={CAMPAIGN.path}
           // Pagina e dinamică, iar linkul e pe orice pagină: prefetch-ul ar
@@ -99,7 +104,9 @@ const TopBar = () => {
           className="flex-1 flex items-center justify-center gap-2 tracking-wide font-bold text-white hover:text-[#f6921e] transition-colors"
         >
           <Lightning size={14} weight="fill" aria-hidden className="text-[#f6921e]" />
-          {CAMPAIGN.name}, {formatCampaignDates(campaign)}
+          {campaignLive
+            ? `${CAMPAIGN.name}, ${formatCampaignDates(campaign)}`
+            : `${CAMPAIGN.name} începe pe ${formatCampaignStart(campaign)}`}
           <ArrowRight size={14} aria-hidden />
         </LocalizedClientLink>
       ) : (
