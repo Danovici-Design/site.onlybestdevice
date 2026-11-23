@@ -14,8 +14,8 @@ import {
 } from "@phosphor-icons/react/dist/ssr"
 import { ReactNode, useState } from "react"
 
-import { useBlackFridayLive } from "@lib/hooks/use-black-friday-live"
-import { BLACK_FRIDAY } from "@lib/util/black-friday"
+import { useCampaignLive } from "@lib/hooks/use-campaign-live"
+import { CAMPAIGN, formatCampaignDates } from "@lib/util/campaign"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import CountrySelect from "../country-select"
 import LanguageSelect from "../language-select"
@@ -43,7 +43,7 @@ const SideMenu = ({ regions, locales, cartIndicator }: SideMenuProps) => {
   const [open, setOpen] = useState(false)
   const countryToggleState = useToggleState()
   const languageToggleState = useToggleState()
-  const blackFridayLive = useBlackFridayLive()
+  const { live: campaignLive, campaign } = useCampaignLive()
 
   const close = () => setOpen(false)
 
@@ -96,9 +96,9 @@ const SideMenu = ({ regions, locales, cartIndicator }: SideMenuProps) => {
           </div>
 
           <nav className="flex-1 overflow-y-auto overscroll-contain px-7 pt-6 pb-6">
-            {blackFridayLive && (
+            {campaignLive && campaign && (
               <LocalizedClientLink
-                href="/black-friday"
+                href={CAMPAIGN.path}
                 prefetch={false}
                 onClick={close}
                 data-testid="black-friday-link"
@@ -109,10 +109,10 @@ const SideMenu = ({ regions, locales, cartIndicator }: SideMenuProps) => {
                 </span>
                 <span className="flex-1">
                   <span className="block text-base font-bold tracking-[-0.01em]">
-                    Black Friday
+                    {CAMPAIGN.name}
                   </span>
                   <span className="block text-xs text-white/60">
-                    Reduceri, {BLACK_FRIDAY.dates}
+                    Reduceri, {formatCampaignDates(campaign)}
                   </span>
                 </span>
                 <CaretRight

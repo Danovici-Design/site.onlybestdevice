@@ -1,8 +1,14 @@
 import { Metadata, Viewport } from "next"
 import { Archivo } from "next/font/google"
 
+import { getCampaign } from "@lib/data/campaign"
 import { listCatalog } from "@lib/data/products"
-import { BLACK_FRIDAY, getBlackFridayPhase } from "@lib/util/black-friday"
+import {
+  CAMPAIGN,
+  formatCampaignStart,
+  formatCampaignStartTime,
+  getCampaignPhase,
+} from "@lib/util/campaign"
 import { canonical } from "@lib/util/canonical"
 import { emptySelectedFilters } from "@lib/util/product-filters"
 import DealCard from "@modules/black-friday/components/deal-card"
@@ -20,15 +26,15 @@ const display = Archivo({
 const PAGE_SIZE = 24
 
 export const metadata: Metadata = {
-  title: "Black Friday: oferte la telefoane, laptopuri și accesorii",
+  title: "Black Weekend: oferte la telefoane, laptopuri și accesorii",
   description:
-    "Black Friday la Onlybestdevice: telefoane, laptopuri, tablete și accesorii la preț redus, cu garanție 24 de luni și plată cu cardul sau în rate.",
-  alternates: canonical("/black-friday"),
+    "Black Weekend la Onlybestdevice: telefoane, laptopuri, tablete și accesorii la preț redus, cu garanție 24 de luni și plată cu cardul sau în rate.",
+  alternates: canonical(CAMPAIGN.path),
   openGraph: {
     type: "website",
     siteName: "Onlybestdevice",
     locale: "ro_RO",
-    url: canonical("/black-friday").canonical,
+    url: canonical(CAMPAIGN.path).canonical,
   },
 }
 
@@ -39,7 +45,7 @@ const buildHref = (category?: string, page?: number) => {
   if (category) query.set("category", category)
   if (page && page > 1) query.set("page", String(page))
   const qs = query.toString()
-  return `/black-friday${qs ? `?${qs}` : ""}#oferte`
+  return `${CAMPAIGN.path}${qs ? `?${qs}` : ""}#oferte`
 }
 
 type Props = {
@@ -51,17 +57,38 @@ type Props = {
  * Produsele vin din price list-ul campaniei, restrânse la cele în stoc: într-o
  * campanie, un card „Stoc epuizat" doar ocupă loc. În afara campaniei lista nu e
  * în desfășurare, deci pagina rămâne doar cu hero-ul.
+ *
+ * Datele (numărătoarea, faza) vin tot din price list, prin `getCampaign`: se
+ * mută din Admin > Liste de prețuri, fără deploy.
  */
-export default async function BlackFridayPage(props: Props) {
+export default async function BlackWeekendPage(props: Props) {
   const { countryCode } = await props.params
   const { category, page: pageParam } = await props.searchParams
   const page = Math.max(1, parseInt(pageParam ?? "1") || 1)
   const now = Date.now()
+  // Backend căzut: pagina rămâne în picioare, cu hero-ul de „încheiat",
+  // în loc să arunce o eroare.
+  const campaign = await getCampaign().catch(() => null)
 
-  if (getBlackFridayPhase(now) !== "live") {
+  const phase = getCampaignPhase(campaign, now)
+
+  // În afara campaniei prețurile listei nu se aplică, deci nu listăm produse;
+  // secțiunea rămâne totuși, ca butonul din hero să aibă unde coborî.
+  if (phase !== "live") {
     return (
       <main className={`bf-page ${display.variable}`}>
-        <BlackFridayHero now={now} />
+        <BlackFridayHero now={now} campaign={campaign} />
+
+        <section id="oferte" className="bf-deals">
+          <h2 className="bf-display bf-deals-title">
+            Ofertele de {CAMPAIGN.name}
+          </h2>
+          <p className="bf-deals-note">
+            {phase === "upcoming" && campaign
+              ? `Produsele apar aici pe ${formatCampaignStart(campaign)}, la ora ${formatCampaignStartTime(campaign)}.`
+              : "Campania s-a încheiat. Mulțumim că ai fost alături de noi!"}
+          </p>
+        </section>
       </main>
     )
   }
@@ -69,7 +96,7 @@ export default async function BlackFridayPage(props: Props) {
   const [{ products, count }, all] = await Promise.all([
     listCatalog({
       countryCode,
-      livePriceList: BLACK_FRIDAY.priceList,
+      livePriceList: CAMPAIGN.priceList,
       selected: {
         ...emptySelectedFilters(),
         stock: true,
@@ -82,7 +109,7 @@ export default async function BlackFridayPage(props: Props) {
     // și după ce clientul a ales una.
     listCatalog({
       countryCode,
-      livePriceList: BLACK_FRIDAY.priceList,
+      livePriceList: CAMPAIGN.priceList,
       selected: { ...emptySelectedFilters(), stock: true },
       limit: 1,
     }),
@@ -93,11 +120,11 @@ export default async function BlackFridayPage(props: Props) {
 
   return (
     <main className={`bf-page ${display.variable}`}>
-      <BlackFridayHero now={now} />
+      <BlackFridayHero now={now} campaign={campaign} />
 
       <section id="oferte" className="bf-deals">
         <h2 className="bf-display bf-deals-title">
-          Ofertele de Black Friday
+          Ofertele de {CAMPAIGN.name}
         </h2>
         <p className="bf-deals-note">
           Garanție 24 de luni, plată cu cardul sau în rate, retur în 14 zile.

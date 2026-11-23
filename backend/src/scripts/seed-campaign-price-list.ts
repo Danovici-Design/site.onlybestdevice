@@ -1,25 +1,26 @@
 /**
- * Creează price list-ul gol „Black Friday”, programat pe perioada campaniei.
+ * Creează price list-ul gol al campaniei („Black Weekend”), programat pe
+ * perioada ei.
  *
  * După rulare, operatorul adaugă doar produsele și prețurile, din Admin >
- * Price Lists > Black Friday. Prețurile intră și ies singure la datele de mai
- * jos, iar produsele din listă apar singure pe /black-friday cât timp lista e
- * în desfășurare.
+ * Liste de prețuri > Black Weekend. Prețurile intră și ies singure la datele
+ * listei, iar produsele din ea apar singure pe /black-weekend cât timp lista e
+ * în desfășurare. Datele se pot muta apoi direct din Admin: pagina le citește
+ * din listă (`/store/campaign`), nu din cod.
  *
  * Lista rămâne `active` de la creare: `active` plus `starts_at` în viitor
  * înseamnă „programată”. Pe `draft` prețurile nu s-ar aplica la start, iar jobul
  * `price-list-revalidate` ar ignora lista.
  *
- * Datele și titlul trebuie să rămână aliniate cu `BLACK_FRIDAY` din
- * `storefront/src/lib/util/black-friday.ts`. Offsetul e explicit, +02:00 e ora
- * României iarna.
+ * Titlul vine din `lib/campaign.ts`. Offsetul e explicit, +02:00 e ora României
+ * iarna.
  *
- * Idempotent: dacă lista există deja, îi aliniază doar datele cu cele de aici.
- * Prețurile adăugate de operator nu sunt atinse, deci scriptul se poate rula din
- * nou oricând se mută campania.
+ * Idempotent: dacă lista există deja, nu scrie nimic — datele mutate între timp
+ * din Admin rămân cum le-a pus operatorul. Cu FORCE_DATES=1 le readuce la cele
+ * de aici. Prețurile adăugate de operator nu sunt atinse.
  *
- * Rulare locală:  cd backend && yarn medusa exec ./src/scripts/seed-black-friday-price-list.ts
- * Rulare pe prod: docker exec <container-backend> npx medusa exec ./src/scripts/seed-black-friday-price-list.js
+ * Rulare locală:  cd backend && yarn medusa exec ./src/scripts/seed-campaign-price-list.ts
+ * Rulare pe prod: docker exec <container-backend> npx medusa exec ./src/scripts/seed-campaign-price-list.js
  *   Opțional: DRY_RUN=1 (doar raport, fără scriere)
  *
  * Nu cere revalidarea storefront-ului: când începe lista, jobul o face singur.
@@ -33,17 +34,20 @@ import {
   updatePriceListsWorkflow,
 } from "@medusajs/medusa/core-flows"
 
-const TITLE = "Black Friday"
-const DESCRIPTION = "Reducerile de Black Friday, 1–8 noiembrie 2026."
-const STARTS_AT = "2026-11-01T00:00:00+02:00"
-const ENDS_AT = "2026-11-08T23:59:59+02:00"
+import { CAMPAIGN_PRICE_LIST_TITLE } from "../lib/campaign"
+
+const TITLE = CAMPAIGN_PRICE_LIST_TITLE
+const DESCRIPTION = "Reducerile de Black Weekend."
+const STARTS_AT = "2026-11-27T00:00:00+02:00"
+const ENDS_AT = "2026-11-29T23:59:59+02:00"
 
 const DRY_RUN = /^(1|true|yes)$/i.test(process.env.DRY_RUN ?? "")
+const FORCE_DATES = /^(1|true|yes)$/i.test(process.env.FORCE_DATES ?? "")
 
 const sameMoment = (a: string | Date | null | undefined, b: string) =>
   !!a && new Date(a).getTime() === new Date(b).getTime()
 
-export default async function seedBlackFridayPriceList({ container }: ExecArgs) {
+export default async function seedCampaignPriceList({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
 
@@ -62,8 +66,12 @@ export default async function seedBlackFridayPriceList({ container }: ExecArgs) 
     if (existing.status !== "active") {
       logger.warn(`Lista e „${existing.status}”. Treci-o pe „active” din Admin.`)
     }
-    if (scheduled) {
-      logger.info(`Lista „${TITLE}” are deja datele corecte. Nu scriu nimic.`)
+    if (scheduled || !FORCE_DATES) {
+      logger.info(
+        `Lista „${TITLE}” există deja (${existing.starts_at} – ${existing.ends_at}). Nu scriu nimic${
+          scheduled ? "" : "; FORCE_DATES=1 o readuce la datele din script"
+        }.`
+      )
       return
     }
     if (DRY_RUN) {

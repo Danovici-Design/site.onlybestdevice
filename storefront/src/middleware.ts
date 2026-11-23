@@ -174,6 +174,9 @@ const LEGACY_SYSTEM_PAGES: Record<string, string> = {
   // sistem — fără el ar cădea pe 307-ul generic de regiune, iar semnalele de
   // ranking n-ar migra pe /oferte.
   "/oferte": "/oferte",
+  // Campania de noiembrie s-a redenumit în Black Weekend; linkurile vechi
+  // (newsletter, social, index) ajung pe pagina nouă.
+  "/black-friday": "/black-weekend",
 }
 
 /**

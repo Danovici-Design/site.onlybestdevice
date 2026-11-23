@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 
+import { CAMPAIGN } from "@lib/util/campaign"
+
 /**
  * Un slot poate fi conținut fix sau o funcție de starea barei:
  * - `overlay`: bara stă peste hero-ul de pe home, deci conținutul e alb;
@@ -57,9 +59,10 @@ const NavShell = ({ left, center, right, menuOpen = false }: Props) => {
   // Home = doar segmentul de country-code în path (ex. "/ro"). Doar acolo
   // navul stă peste hero-ul întunecat, deci doar acolo activăm overlay-ul alb.
   const isHome = pathname.split("/").filter(Boolean).length <= 1
-  // Pagina Black Friday e neagră de sus până jos, deci rămâne albă pe negru și
+  // Pagina campaniei e neagră de sus până jos, deci rămâne albă pe negru și
   // după scroll, inclusiv în pastilă.
-  const isBlackFriday = pathname.split("/").filter(Boolean)[1] === "black-friday"
+  const isBlackFriday =
+    `/${pathname.split("/").filter(Boolean)[1] ?? ""}` === CAMPAIGN.path
 
   useEffect(() => {
     let ticking = false

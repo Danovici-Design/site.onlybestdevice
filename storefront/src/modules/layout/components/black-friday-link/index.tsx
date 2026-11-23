@@ -3,7 +3,8 @@
 import { Lightning } from "@phosphor-icons/react/dist/ssr"
 import { clx } from "@medusajs/ui"
 
-import { useBlackFridayLive } from "@lib/hooks/use-black-friday-live"
+import { useCampaignLive } from "@lib/hooks/use-campaign-live"
+import { CAMPAIGN } from "@lib/util/campaign"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 /**
@@ -14,12 +15,12 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
  * deci primește chenar.
  */
 export default function BlackFridayLink({ overlay }: { overlay: boolean }) {
-  const live = useBlackFridayLive()
+  const { live } = useCampaignLive()
   if (!live) return null
 
   return (
     <LocalizedClientLink
-      href="/black-friday"
+      href={CAMPAIGN.path}
       prefetch={false}
       data-testid="nav-black-friday-link"
       className={clx(
@@ -28,7 +29,7 @@ export default function BlackFridayLink({ overlay }: { overlay: boolean }) {
       )}
     >
       <Lightning size={15} weight="fill" aria-hidden className="text-[#f6921e]" />
-      Black Friday
+      {CAMPAIGN.name}
     </LocalizedClientLink>
   )
 }

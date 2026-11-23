@@ -3,8 +3,13 @@
 import { ArrowDown } from "@phosphor-icons/react/dist/ssr"
 import { useEffect, useState } from "react"
 
-import { BLACK_FRIDAY, getBlackFridayPhase } from "@lib/util/black-friday"
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import {
+  CAMPAIGN,
+  formatCampaignDates,
+  formatCampaignStart,
+  getCampaignPhase,
+  type CampaignDates,
+} from "@lib/util/campaign"
 
 const UNITS = [
   { label: "zile", ms: 86_400_000 },
@@ -22,18 +27,26 @@ const remainingUnits = (ms: number) => {
   })
 }
 
-const LEAD = {
-  upcoming: `Reducerile încep pe ${BLACK_FRIDAY.startDate}.`,
-  live: `Reduceri la telefoane, laptopuri și accesorii, ${BLACK_FRIDAY.dates}.`,
-  ended: "Campania s-a încheiat.",
-}
+const lead = (phase: string, campaign: CampaignDates | null) =>
+  phase === "upcoming" && campaign
+    ? `Reducerile încep pe ${formatCampaignStart(campaign)}.`
+    : phase === "live" && campaign
+      ? `Reduceri la telefoane, laptopuri și accesorii, ${formatCampaignDates(campaign)}.`
+      : "Campania s-a încheiat."
 
 /**
  * `now` vine de pe server, ca prima randare din browser să fie identică cu HTML
  * primit; ceasul real preia după hidratare. Faza se recalculează la fiecare
  * secundă, deci pagina lăsată deschisă trece singură la „Se termină în".
  */
-const BlackFridayHero = ({ now: serverNow }: { now: number }) => {
+const BlackFridayHero = ({
+  now: serverNow,
+  campaign,
+}: {
+  now: number
+  /** Din price list-ul campaniei; `null` = fără campanie programată. */
+  campaign: CampaignDates | null
+}) => {
   const [now, setNow] = useState(serverNow)
 
   useEffect(() => {
@@ -42,32 +55,29 @@ const BlackFridayHero = ({ now: serverNow }: { now: number }) => {
     return () => clearInterval(id)
   }, [])
 
-  const phase = getBlackFridayPhase(now)
-  const target = phase === "upcoming" ? BLACK_FRIDAY.start : BLACK_FRIDAY.end
+  const phase = getCampaignPhase(campaign, now)
+  const target = !campaign ? now : phase === "upcoming" ? campaign.start : campaign.end
 
   return (
     <section className="bf-hero">
       <h1 className="bf-display bf-wordmark">
-        Black
+        {CAMPAIGN.name.split(" ")[0]}
         <br />
-        Friday
+        {CAMPAIGN.name.split(" ").slice(1).join(" ")}
       </h1>
 
       <div className="bf-hero-footer">
         <div>
-          <p className="bf-lead">{LEAD[phase]}</p>
-          {phase === "live" ? (
-            <a href="#oferte" className="bf-cta">
-              Vezi ofertele
-              <span className="bf-cta-icon">
-                <ArrowDown size={20} weight="bold" aria-hidden />
-              </span>
-            </a>
-          ) : (
-            <LocalizedClientLink href="/oferte" className="bf-cta">
-              Vezi ofertele
-            </LocalizedClientLink>
-          )}
+          <p className="bf-lead">{lead(phase, campaign)}</p>
+          {/* Butonul coboară mereu în pagina asta, la secțiunea #oferte: produsele
+              campaniei cât ține, altfel mesajul cu data de start. Nu trimite pe
+              /oferte — acolo e altă selecție decât cea anunțată aici. */}
+          <a href="#oferte" className="bf-cta">
+            Vezi ofertele
+            <span className="bf-cta-icon">
+              <ArrowDown size={20} weight="bold" aria-hidden />
+            </span>
+          </a>
         </div>
 
         {phase !== "ended" && (

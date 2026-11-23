@@ -17,6 +17,8 @@ const KNOWN_TAGS = new Set([
   // vizibilă în coșurile deja existente.
   "carts",
   "collections",
+  // Datele campaniei (Black Weekend), citite din price list-ul ei.
+  "campaign",
   "regions",
   "locales",
   "best-sellers",

@@ -14,7 +14,8 @@ import { clx } from "@medusajs/ui"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { useCartDrawer } from "@lib/context/cart-drawer-context"
 import { useConsent } from "@lib/context/consent-context"
-import { useBlackFridayLive } from "@lib/hooks/use-black-friday-live"
+import { useCampaignLive } from "@lib/hooks/use-campaign-live"
+import { CAMPAIGN } from "@lib/util/campaign"
 import { useFooterInView } from "@lib/hooks/use-footer-in-view"
 import { useScrolledPast } from "@lib/hooks/use-scrolled-past"
 
@@ -41,7 +42,7 @@ export default function BottomNavClient({ cartIndicator }: Props) {
   const { open: openCart } = useCartDrawer()
   const { decided } = useConsent()
   const footerInView = useFooterInView()
-  const blackFridayLive = useBlackFridayLive()
+  const { live: campaignLive } = useCampaignLive()
   const visible = scrolled && decided && !footerInView
   const stripped = pathname.replace(new RegExp(`^/${countryCode}`), "") || "/"
 
@@ -56,11 +57,11 @@ export default function BottomNavClient({ cartIndicator }: Props) {
       icon: Storefront,
       matchPrefixes: ["/store", "/categories", "/collections", "/products"],
     },
-    ...(blackFridayLive
+    ...(campaignLive
       ? [
           {
-            href: "/black-friday",
-            label: "Black Friday",
+            href: CAMPAIGN.path,
+            label: CAMPAIGN.name,
             icon: Lightning,
             highlight: true,
           },

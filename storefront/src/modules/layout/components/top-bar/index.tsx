@@ -16,8 +16,8 @@ import {
 } from "@phosphor-icons/react/dist/ssr"
 import { useEffect, useState } from "react"
 
-import { useBlackFridayLive } from "@lib/hooks/use-black-friday-live"
-import { BLACK_FRIDAY } from "@lib/util/black-friday"
+import { useCampaignLive } from "@lib/hooks/use-campaign-live"
+import { CAMPAIGN, formatCampaignDates } from "@lib/util/campaign"
 import { COMPANY } from "@lib/util/company-info"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
@@ -40,15 +40,15 @@ const ROTATION_MS = 5000
 
 const TopBar = () => {
   const [index, setIndex] = useState(0)
-  const blackFridayLive = useBlackFridayLive()
+  const { live: campaignLive, campaign } = useCampaignLive()
 
   useEffect(() => {
-    if (blackFridayLive) return
+    if (campaignLive) return
     const id = setInterval(() => {
       setIndex((i) => (i + 1) % messages.length)
     }, ROTATION_MS)
     return () => clearInterval(id)
-  }, [blackFridayLive])
+  }, [campaignLive])
 
   const prev = () =>
     setIndex((i) => (i - 1 + messages.length) % messages.length)
@@ -90,16 +90,16 @@ const TopBar = () => {
 
       {/* Cât ține campania, mesajul e fix: un link care dispare după 5 secunde
           ar fi ratat tocmai pe mobil, unde aici e primul lucru de pe pagină. */}
-      {blackFridayLive ? (
+      {campaignLive && campaign ? (
         <LocalizedClientLink
-          href="/black-friday"
+          href={CAMPAIGN.path}
           // Pagina e dinamică, iar linkul e pe orice pagină: prefetch-ul ar
           // însemna câte o cerere la server pentru fiecare vizitator.
           prefetch={false}
           className="flex-1 flex items-center justify-center gap-2 tracking-wide font-bold text-white hover:text-[#f6921e] transition-colors"
         >
           <Lightning size={14} weight="fill" aria-hidden className="text-[#f6921e]" />
-          Black Friday, {BLACK_FRIDAY.dates}
+          {CAMPAIGN.name}, {formatCampaignDates(campaign)}
           <ArrowRight size={14} aria-hidden />
         </LocalizedClientLink>
       ) : (
