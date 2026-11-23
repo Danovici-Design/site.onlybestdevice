@@ -8,8 +8,8 @@ import { z } from "zod"
 
 import { OFFER_EXCLUDE_TAG, OFFER_TAG } from "../../../lib/discounted-products"
 import { removeLiveSalePrices } from "../../../lib/pricing"
+import { updateProductTags } from "../../../lib/product-tags-bulk"
 import { snapshotBeforeDelete } from "../../../lib/products/restore"
-import { applyTagToProducts } from "../../../scripts/lib/product-tag-migration"
 import { SH_SERVICES_HANDLE } from "../../../lib/second-hand"
 import { WARRANTY_HANDLE } from "../../../lib/warranty-prices"
 
@@ -151,50 +151,42 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
         // Bifa „Ofertă specială": doar tagul. Un produs debifat dar redus
         // rămâne pe /oferte — pentru scoaterea completă e `offer_clear`.
+        // La bifare se scoate și „Ascuns de pe /oferte”, ca starea să fie clară.
         case "offer_add":
+          done += (
+            await updateProductTags(req.scope, batch, {
+              add: [OFFER_TAG],
+              remove: [OFFER_EXCLUDE_TAG],
+            })
+          ).length
+          break
         case "offer_remove":
-          done += await applyTagToProducts(req.scope, {
-            productIds: batch,
-            tagValue: OFFER_TAG,
-            mode: action === "offer_add" ? "add" : "remove",
-          })
+          done += (await updateProductTags(req.scope, batch, { remove: [OFFER_TAG] })).length
           break
 
         // Scoate produsele de pe /oferte de tot: debifează și șterge prețul
         // promoțional în vigoare (produsul revine la prețul normal).
         case "offer_clear": {
-          await applyTagToProducts(req.scope, {
-            productIds: batch,
-            tagValue: OFFER_TAG,
-            mode: "remove",
-          })
-          await removeLiveSalePrices(req.scope, batch)
-          done += batch.length
+          const untagged = await updateProductTags(req.scope, batch, { remove: [OFFER_TAG] })
+          const unpriced = await removeLiveSalePrices(req.scope, batch)
+          done += new Set([...untagged, ...unpriced]).size
           break
         }
 
         // Scoate de pe /oferte păstrând reducerea: bifa „Ascuns de pe /oferte”
-        // și fără „Ofertă specială” (care ar avea întâietate).
+        // și fără „Ofertă specială” (care ar avea întâietate) — într-o singură
+        // scriere per produs.
         case "offer_hide":
-          await applyTagToProducts(req.scope, {
-            productIds: batch,
-            tagValue: OFFER_TAG,
-            mode: "remove",
-          })
-          await applyTagToProducts(req.scope, {
-            productIds: batch,
-            tagValue: OFFER_EXCLUDE_TAG,
-            mode: "add",
-          })
-          done += batch.length
+          done += (
+            await updateProductTags(req.scope, batch, {
+              add: [OFFER_EXCLUDE_TAG],
+              remove: [OFFER_TAG],
+            })
+          ).length
           break
 
         case "offer_unhide":
-          done += await applyTagToProducts(req.scope, {
-            productIds: batch,
-            tagValue: OFFER_EXCLUDE_TAG,
-            mode: "remove",
-          })
+          done += (await updateProductTags(req.scope, batch, { remove: [OFFER_EXCLUDE_TAG] })).length
           break
 
         case "delete":

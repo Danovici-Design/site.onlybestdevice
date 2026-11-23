@@ -1,25 +1,28 @@
 /**
- * Produsele cu o reducere care se aplică ACUM: o variantă are un preț dintr-o
- * price list de tip `sale` activă, publică (`rules_count = 0`), în intervalul
- * ei, și mai mic decât prețul normal al variantei. Aceleași condiții după care
+ * Prețurile promoționale care se aplică ACUM: un preț fără reguli proprii
+ * (fără regiune, cantitate minimă…) dintr-o price list de tip `sale` activă,
+ * publică (`rules_count = 0`), în intervalul ei, și mai mic decât prețul
+ * normal al variantei. Aceleași condiții după care
  * Medusa calculează prețul tăiat, deci tot ce intră aici are preț tăiat pe card
  * — iar o promoție programată, încă nepornită, nu apare pe /oferte la preț
  * întreg.
  *
- * Folosită de /store/catalog (pagina /oferte) și de filtrul „Redus acum” din
- * lista de produse din admin, ca cele două să numere la fel. Trebuie să rămână
+ * Sursa unică pentru /store/catalog (pagina /oferte), filtrul „Redus acum” din
+ * admin și „Scoate reducerea” (`removeLiveSalePrices`): ce se numără e exact
+ * ce se șterge. Trebuie să rămână
  * aliniată cu `isDiscounted` din storefront (`lib/util/sale.ts`), care dă
  * badge-ul.
  *
  * Cere binding-ul `:currency` în cererea în care e inclusă.
  */
-export const discountedProductsSql = `
-  SELECT v.product_id
+export const liveSalePricesSql = `
+  SELECT sp.id AS price_id, sp.price_list_id, v.id AS variant_id, v.product_id
   FROM product_variant v
   JOIN product_variant_price_set vps ON vps.variant_id = v.id AND vps.deleted_at IS NULL
   JOIN price sp ON sp.price_set_id = vps.price_set_id
                AND sp.deleted_at IS NULL
                AND sp.currency_code = :currency
+               AND COALESCE(sp.rules_count, 0) = 0
   JOIN price_list pl ON pl.id = sp.price_list_id
                     AND pl.deleted_at IS NULL
                     AND pl.type = 'sale'
@@ -33,7 +36,12 @@ export const discountedProductsSql = `
                AND bp.currency_code = :currency
                AND COALESCE(bp.rules_count, 0) = 0
   WHERE v.deleted_at IS NULL
+    AND v.product_id IS NOT NULL
     AND sp.amount < bp.amount`
+
+/** Id-urile produselor din `liveSalePricesSql` — bun pentru `IN` / `NOT IN`. */
+export const discountedProductsSql = `
+  SELECT live.product_id FROM (${liveSalePricesSql}) live`
 
 /** Tagul bifei „Ofertă specială": produsul e pe /oferte, primul, cu sau fără reducere. */
 export const OFFER_TAG = "oferta"
@@ -51,7 +59,8 @@ export const taggedProductsSql = (tagBinding: string) => `
   SELECT pt.product_id
   FROM product_tags pt
   JOIN product_tag t ON t.id = pt.product_tag_id AND t.deleted_at IS NULL
-  WHERE LOWER(t.value) = ${tagBinding}`
+  WHERE LOWER(t.value) = ${tagBinding}
+    AND pt.product_id IS NOT NULL`
 
 /**
  * Regula /oferte, ca predicat pe `p.id`: bifat „Ofertă specială” SAU (redus

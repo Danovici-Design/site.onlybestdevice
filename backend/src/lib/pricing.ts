@@ -11,6 +11,7 @@ import {
 } from "@medusajs/medusa/core-flows"
 
 import { resolveCurrencyCode } from "./currency"
+import { liveSalePricesSql } from "./discounted-products"
 
 /**
  * Prețul unui produs, în forma pe care o știe un operator de magazin: un preț
@@ -450,21 +451,21 @@ export const writeProductPrices = async (
 
 /**
  * Scoate prețurile promoționale care țin acum produsele pe /oferte — exact
- * rândurile numărate de `discountedProductsSql`: price list `sale` activă,
- * publică, în intervalul ei, sub prețul normal. O campanie programată (încă
- * nepornită) sau una expirată rămâne neatinsă.
+ * rândurile din `liveSalePricesSql`. O campanie programată (încă nepornită),
+ * una expirată sau un preț cu reguli proprii rămân neatinse.
  *
- * Întoarce câte produse au pierdut cel puțin un preț promoțional.
+ * Întoarce id-urile produselor care au pierdut cel puțin un preț promoțional.
  */
 export const removeLiveSalePrices = async (
   container: any,
-  productIds: string[],
-  currency = "ron"
-): Promise<number> => {
-  if (!productIds.length) return 0
+  productIds: string[]
+): Promise<string[]> => {
+  if (!productIds.length) return []
   const knex: any = container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
+  const currency = await resolveCurrencyCode(container)
+
   // Câte un binding numit per id: knex desface tablourile în `?,?,…`, ceea ce
-  // n-ar merge într-un `ANY(...)`.
+  // nu se potrivește cu binding-urile numite din restul cererii.
   const idBindings: Record<string, string> = {}
   productIds.forEach((id, i) => (idBindings[`id_${i}`] = id))
   const idList = Object.keys(idBindings)
@@ -474,32 +475,13 @@ export const removeLiveSalePrices = async (
   const rows: { price_id: string; price_list_id: string; variant_id: string; product_id: string }[] =
     (
       await knex.raw(
-        `SELECT DISTINCT sp.id AS price_id, sp.price_list_id, v.id AS variant_id, v.product_id
-         FROM product_variant v
-         JOIN product_variant_price_set vps ON vps.variant_id = v.id AND vps.deleted_at IS NULL
-         JOIN price sp ON sp.price_set_id = vps.price_set_id
-                      AND sp.deleted_at IS NULL
-                      AND sp.currency_code = :currency
-         JOIN price_list pl ON pl.id = sp.price_list_id
-                           AND pl.deleted_at IS NULL
-                           AND pl.type = 'sale'
-                           AND pl.status = 'active'
-                           AND pl.rules_count = 0
-                           AND (pl.starts_at IS NULL OR pl.starts_at <= NOW())
-                           AND (pl.ends_at   IS NULL OR pl.ends_at   >= NOW())
-         JOIN price bp ON bp.price_set_id = vps.price_set_id
-                      AND bp.deleted_at IS NULL
-                      AND bp.price_list_id IS NULL
-                      AND bp.currency_code = :currency
-                      AND COALESCE(bp.rules_count, 0) = 0
-         WHERE v.deleted_at IS NULL
-           AND v.product_id IN (${idList})
-           AND sp.amount < bp.amount`,
+        `SELECT DISTINCT live.* FROM (${liveSalePricesSql}) live
+         WHERE live.product_id IN (${idList})`,
         { currency, ...idBindings }
       )
     ).rows
 
-  if (!rows.length) return 0
+  if (!rows.length) return []
 
   const byList = new Map<string, string[]>()
   for (const r of rows) {
@@ -516,5 +498,5 @@ export const removeLiveSalePrices = async (
   // Workflow-urile de price list nu emit evenimente — vezi `writeProductPrices`.
   await emitVariantsUpdated(container, [...new Set(rows.map((r) => r.variant_id))])
 
-  return new Set(rows.map((r) => r.product_id)).size
+  return [...new Set(rows.map((r) => r.product_id))]
 }

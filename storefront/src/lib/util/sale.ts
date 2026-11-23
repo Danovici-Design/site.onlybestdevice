@@ -8,7 +8,7 @@ export const SALE_BADGE_LABEL = "Ofertă"
  * Exact unul: dacă am accepta și sinonime moștenite din import (`sale`,
  * `reducere`, …), un produs le-ar putea purta fără ca bifa din admin să arate
  * ceva și fără să poată fi scos de acolo. Trebuie să rămână aliniat cu
- * `SALE_TAG` din `backend/src/api/store/catalog/route.ts`.
+ * `OFFER_TAG` din `backend/src/lib/discounted-products.ts`.
  */
 const SALE_TAG = "oferta"
 
@@ -28,8 +28,14 @@ const isPicked = (product: HttpTypes.StoreProduct): boolean =>
 /**
  * O variantă are acum un preț promoțional real: vine dintr-o price list de tip
  * `sale` și e sub prețul normal. Medusa aplică deja programarea listei, deci o
- * promoție încă nepornită nu trece. Aliniat cu `discountedProductsSql` din
- * ruta de catalog.
+ * promoție încă nepornită nu trece. Aliniat cu `liveSalePricesSql` din
+ * `backend/src/lib/discounted-products.ts`.
+ *
+ * SQL-ul acceptă doar liste publice (`rules_count = 0`); aici nu avem cum să
+ * vedem regulile listei, dar nici nu e nevoie: produsele se citesc fără
+ * autentificare (`lib/data/products.ts`), deci o listă pe grup de clienți nu
+ * ajunge niciodată în `calculated_price`. Dacă vreodată se citesc cu clientul
+ * logat, regula de aici trebuie restrânsă la listele publice.
  */
 const isDiscounted = (product: HttpTypes.StoreProduct): boolean =>
   (product.variants ?? []).some((v) => {
