@@ -41,6 +41,8 @@ import { isEqual } from "lodash"
 import { useParams, usePathname, useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import MobileActions from "./mobile-actions"
+import OfferStockNotice from "@modules/products/components/offer-stock-notice"
+import type { OfferPeriods } from "@lib/util/offer-period"
 
 type ProductActionsProps = {
   product: HttpTypes.StoreProduct
@@ -52,6 +54,8 @@ type ProductActionsProps = {
   disabled?: boolean
   /** Providerul TBI e activ pe regiune — vezi product-actions-wrapper. */
   tbiAvailable?: boolean
+  /** Perioada reducerii pe variantă, pentru „În limita stocului disponibil". */
+  offerPeriods?: OfferPeriods
 }
 
 const optionsAsKeymap = (
@@ -70,6 +74,7 @@ export default function ProductActions({
   services,
   disabled,
   tbiAvailable = false,
+  offerPeriods = {},
 }: ProductActionsProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -256,6 +261,13 @@ export default function ProductActions({
   })
   const selectedPrice = selectedVariant ? variantPrice : cheapestPrice
   const onSale = selectedPrice?.price_type === "sale"
+  // Perioada variantei alese; fără alegere, a primei variante reduse.
+  const offerPeriod = selectedVariant
+    ? offerPeriods[selectedVariant.id]
+    : Object.values(offerPeriods)[0]
+  // Doar la reducerea reală (preț tăiat), nu și la produsele bifate „Ofertă
+  // specială" la preț întreg: mențiunea ține de prețul promoțional.
+  const showOfferNotice = onSale
 
   // Rata cea mai mică posibilă, indiferent de finanțator, pentru rezumatul de
   // lângă preț. Aceeași sursă ca în calculatorul de mai jos (care se deschide
@@ -371,37 +383,38 @@ export default function ProductActions({
           {selectedPrice ? (
             <>
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-baseline gap-3">
-                  <span
-                    className={clx(
-                      "text-[1.75rem] xsmall:text-3xl lg:text-4xl font-extrabold tracking-tight",
-                      onSale ? "text-brand-accent" : "text-brand-dark"
-                    )}
-                    data-testid="product-price"
-                    data-value={selectedPrice.calculated_price_number}
-                  >
-                    {!selectedVariant && (
-                      <span className="text-base font-sans text-brand-dark/50 mr-2">
-                        Da
-                      </span>
-                    )}
-                    {selectedPrice.calculated_price}
-                  </span>
-                  {onSale && (
-                    <>
-                      <span
-                        className="text-brand-dark/40 line-through text-lg"
-                        data-testid="original-product-price"
-                        data-value={selectedPrice.original_price_number}
-                      >
-                        {selectedPrice.original_price}
-                      </span>
-                      <span className="bg-brand-accent text-white px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider">
-                        -{selectedPrice.percentage_diff}%
-                      </span>
-                    </>
+                <span
+                  className={clx(
+                    "text-[1.75rem] xsmall:text-3xl lg:text-4xl font-extrabold tracking-tight",
+                    onSale ? "text-brand-accent" : "text-brand-dark"
                   )}
-                </div>
+                  data-testid="product-price"
+                  data-value={selectedPrice.calculated_price_number}
+                >
+                  {!selectedVariant && (
+                    <span className="text-base font-sans text-brand-dark/50 mr-2">
+                      Da
+                    </span>
+                  )}
+                  {selectedPrice.calculated_price}
+                </span>
+                {/* Prețul vechi și procentul stau sub prețul mare, nu lângă: pe
+                    același rând coloana devenea prea lată și blocul de rate
+                    cădea sub preț la orice produs redus. */}
+                {onSale && (
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="text-brand-dark/40 line-through text-base"
+                      data-testid="original-product-price"
+                      data-value={selectedPrice.original_price_number}
+                    >
+                      {selectedPrice.original_price}
+                    </span>
+                    <span className="bg-brand-accent text-white px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider">
+                      -{selectedPrice.percentage_diff}%
+                    </span>
+                  </div>
+                )}
 
                 {/* Disponibilitatea, sub preț. La `isBackorder` tăcem: mai jos
                     există caseta „La comandă” cu termenul real de livrare. */}
@@ -411,6 +424,10 @@ export default function ProductActions({
                     În stoc
                   </span>
                 )}
+
+                {/* Anunțul unei oferte trebuie să spună că e în limita
+                    stocului; perioada se deschide la click. */}
+                {showOfferNotice && <OfferStockNotice period={offerPeriod} />}
               </div>
 
               {/* Separatorul și blocul de rate stau într-un singur flex item, ca

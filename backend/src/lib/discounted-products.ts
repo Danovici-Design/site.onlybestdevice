@@ -16,7 +16,9 @@
  * Cere binding-ul `:currency` în cererea în care e inclusă.
  */
 export const liveSalePricesSql = `
-  SELECT sp.id AS price_id, sp.price_list_id, v.id AS variant_id, v.product_id
+  SELECT sp.id AS price_id, sp.price_list_id, v.id AS variant_id, v.product_id,
+         sp.amount, sp.created_at AS price_created_at,
+         pl.starts_at AS list_starts_at, pl.ends_at AS list_ends_at
   FROM product_variant v
   JOIN product_variant_price_set vps ON vps.variant_id = v.id AND vps.deleted_at IS NULL
   JOIN price sp ON sp.price_set_id = vps.price_set_id

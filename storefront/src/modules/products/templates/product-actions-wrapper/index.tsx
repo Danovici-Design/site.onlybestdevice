@@ -1,4 +1,5 @@
 import { listCartPaymentMethods } from "@lib/data/payment"
+import { getOfferPeriods } from "@lib/data/offer-periods"
 import { listProducts } from "@lib/data/products"
 import { HttpTypes } from "@medusajs/types"
 import ProductActions from "@modules/products/components/product-actions"
@@ -19,7 +20,7 @@ export default async function ProductActionsWrapper({
   warranty?: HttpTypes.StoreProduct
   services?: HttpTypes.StoreProduct
 }) {
-  const [product, paymentMethods] = await Promise.all([
+  const [product, paymentMethods, offerPeriods] = await Promise.all([
     listProducts({
       queryParams: { id: [id] },
       regionId: region.id,
@@ -27,6 +28,7 @@ export default async function ProductActionsWrapper({
     // Aceeași sursă ca în coș și checkout: nota despre TBI din cardul de rate
     // se schimbă după cum providerul e activ sau nu pe regiune.
     listCartPaymentMethods(region.id),
+    getOfferPeriods(id),
   ])
 
   if (!product) {
@@ -40,6 +42,7 @@ export default async function ProductActionsWrapper({
       upgrades={upgrades}
       warranty={warranty}
       services={services}
+      offerPeriods={offerPeriods}
       tbiAvailable={(paymentMethods ?? []).some((pm) =>
         pm.id.startsWith("pp_tbi")
       )}
