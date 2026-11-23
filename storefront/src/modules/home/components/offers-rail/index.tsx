@@ -2,7 +2,7 @@ import { buildRailTabs } from "@lib/data/rails"
 import ProductRail from "@modules/home/components/product-rail"
 
 /**
- * „Oferte" — doar produsele bifate „Ofertă specială" în admin. Aceeași sursă ca
+ * „Oferte" — produsele bifate „Ofertă specială" și reduse. Aceeași sursă ca
  * /oferte, ca secțiunea de pe prima pagină și pagina de oferte să nu se
  * contrazică.
  */

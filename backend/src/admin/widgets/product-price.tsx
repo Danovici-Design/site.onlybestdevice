@@ -368,7 +368,7 @@ const ProductPriceWidget = ({ data: product }: DetailWidgetProps<AdminProduct>) 
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col gap-1">
               <Text size="small" className="text-ui-fg-subtle">
-                Pe <code>/oferte</code> apare doar dacă e bifat „Ofertă specială”. Golește
+                Pe <code>/oferte</code> apare doar dacă e și bifat „Ofertă specială”. Golește
                 câmpul ca să-l scoți de la reducere.
               </Text>
               {clearedPrice && (

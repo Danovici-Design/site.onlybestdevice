@@ -7,9 +7,9 @@
  * — iar o promoție programată, încă nepornită, nu apare pe /oferte la preț
  * întreg.
  *
- * Sursa unică pentru filtrul „Redus acum” din admin, „Scoate reducerea”
- * (`removeLiveSalePrices`) și perioada ofertei de pe pagina produsului
- * (`/store/offer-periods`): ce se numără e exact ce se șterge. Trebuie să rămână
+ * Sursa unică pentru /oferte (împreună cu bifa), filtrul „Redus acum” din
+ * admin, „Scoate reducerea” (`removeLiveSalePrices`) și perioada ofertei de pe
+ * pagina produsului (`/store/offer-periods`): ce se numără e exact ce se șterge. Trebuie să rămână
  * aliniată cu `isDiscounted` din storefront (`lib/util/sale.ts`), care dă
  * badge-ul.
  *
@@ -46,8 +46,9 @@ export const discountedProductsSql = `
   SELECT live.product_id FROM (${liveSalePricesSql}) live`
 
 /**
- * Tagul bifei „Ofertă specială": singurul criteriu pentru /oferte, secțiunea
- * Oferte de pe home și badge-ul „Ofertă". Aliniat cu `SALE_TAG` din storefront
+ * Tagul bifei „Ofertă specială": împreună cu o reducere în vigoare, pune
+ * produsul pe /oferte, în secțiunea Oferte de pe home și sub badge-ul „Ofertă”
+ * (vezi `offersPredicateSql`). Aliniat cu `SALE_TAG` din storefront
  * (`lib/util/sale.ts`).
  */
 export const OFFER_TAG = "oferta"
@@ -61,11 +62,13 @@ export const taggedProductsSql = (tagBinding: string) => `
     AND pt.product_id IS NOT NULL`
 
 /**
- * Regula /oferte, ca predicat pe `p.id`: DOAR produsele bifate „Ofertă
- * specială”. O reducere singură (preț tăiat) nu pune produsul pe /oferte —
- * decizia utilizatorului din 23.11.2026, după o zi în care toate cele ~217 de
- * produse reduse intrau automat. Folosită de /store/catalog și de pagina
- * „Oferte” din admin, ca cele două să numere la fel.
+ * Regula /oferte, ca predicat pe `p.id`: bifat „Ofertă specială” ȘI redus acum
+ * (preț promoțional în vigoare). Nici bifa singură (produs la preț întreg pe
+ * /oferte), nici reducerea singură (toate cele ~217 produse reduse) nu sunt
+ * suficiente — deciziile utilizatorului din 23.11.2026. Folosită de
+ * /store/catalog și de pagina „Oferte” din admin, ca cele două să numere la
+ * fel; aliniată cu `isSaleProduct` din storefront (`lib/util/sale.ts`).
  */
 export const offersPredicateSql = (offerBinding: string) =>
-  `p.id IN (${taggedProductsSql(offerBinding)})`
+  `(p.id IN (${taggedProductsSql(offerBinding)})
+    AND p.id IN (${discountedProductsSql}))`

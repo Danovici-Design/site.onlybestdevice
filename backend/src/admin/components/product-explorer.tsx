@@ -141,7 +141,7 @@ const OFFER_VIEWS = [
   [
     "all",
     "Pe /oferte",
-    "Exact ce apare pe /oferte și în secțiunea Oferte de pe home: produsele bifate „Ofertă specială”.",
+    "Exact ce apare pe /oferte și în secțiunea Oferte de pe home: produsele bifate „Ofertă specială” care au și preț promoțional.",
   ],
   [
     "discounted",
@@ -152,6 +152,11 @@ const OFFER_VIEWS = [
     "unpicked",
     "Reduse, nebifate",
     "Au preț tăiat, dar nu apar pe /oferte pentru că nu sunt bifate „Ofertă specială”. Le poți bifa din bara de jos: Ofertă → Bifează.",
+  ],
+  [
+    "unpriced",
+    "Bifate, fără reducere",
+    "Sunt bifate „Ofertă specială”, dar n-au preț promoțional, deci nu apar pe /oferte. Pune-le preț promoțional din cardul „Preț” sau debifează-le.",
   ],
 ] as const
 type OfferView = (typeof OFFER_VIEWS)[number][0]

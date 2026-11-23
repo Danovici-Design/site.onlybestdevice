@@ -70,8 +70,8 @@ const QuerySchema = z.object({
   /** Interval de preț „min-max"; capetele sunt opționale („-500", „100-"). */
   price: z.string().optional(),
   /**
-   * Ofertele: doar produsele bifate „Ofertă specială" în admin — vezi
-   * `offersPredicateSql`. Un preț tăiat singur nu e suficient.
+   * Ofertele: produsele bifate „Ofertă specială" în admin care au și o reducere
+   * în vigoare — vezi `offersPredicateSql`.
    * Bifatele vin primele la sortarea implicită.
    */
   sale: z
@@ -327,7 +327,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
   // Oferta îngustează SCOPE-ul, nu setul filtrat: pe /oferte fațetele și
   // intervalul de preț trebuie să descrie ofertele, nu tot catalogul.
-  // Doar bifa „Ofertă specială" — vezi `offersPredicateSql`.
+  // Bifa „Ofertă specială" ȘI o reducere în vigoare — vezi `offersPredicateSql`.
   if (q.sale) {
     scopeWhere.push(offersPredicateSql(bind(OFFER_TAG, "sale")))
   }

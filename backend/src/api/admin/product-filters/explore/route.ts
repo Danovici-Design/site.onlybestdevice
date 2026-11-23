@@ -61,11 +61,11 @@ const QuerySchema = z
      */
     discount: z.enum(["yes", "no"]).optional(),
     /**
-     * Pagina „Oferte" din admin: `all` = exact ce e pe /oferte (bifate
-     * „Ofertă specială"), `discounted` = toate cele reduse acum, `unpicked` =
-     * reduse acum dar nebifate (candidații pentru /oferte).
+     * Pagina „Oferte" din admin: `all` = exact ce e pe /oferte (bifate ȘI
+     * reduse), `discounted` = toate cele reduse acum, `unpicked` = reduse dar
+     * nebifate, `unpriced` = bifate dar fără reducere (nu apar pe /oferte).
      */
-    offers: z.enum(["all", "discounted", "unpicked"]).optional(),
+    offers: z.enum(["all", "discounted", "unpicked", "unpriced"]).optional(),
     sort: z
       .enum(["newest", "oldest", "title", "price_asc", "price_desc", "stock_asc", "stock_desc"])
       .default("newest"),
@@ -220,6 +220,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       all: offersPredicateSql(offer),
       discounted: `p.id IN (${discountedProductsSql})`,
       unpicked: `(p.id IN (${discountedProductsSql}) AND p.id NOT IN (${taggedProductsSql(offer)}))`,
+      unpriced: `(p.id IN (${taggedProductsSql(offer)}) AND p.id NOT IN (${discountedProductsSql}))`,
     }
     scopeWhere.push(byView[q.offers])
   }

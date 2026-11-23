@@ -11,7 +11,7 @@ import { HttpTypes } from "@medusajs/types"
 
 /**
  * Criteriul după care un rail își alege produsele:
- *  - `sale`        — bifa „Ofertă specială" din admin (tagul `oferta`);
+ *  - `sale`        — bifa „Ofertă specială" (tagul `oferta`) + reducere;
  *                    aceeași sursă ca /oferte;
  *  - `featured`    — recomandările: produsele bifate „Recomandat" în admin
  *                    (tagul `recomandat`) urcă în față, restul e catalogul

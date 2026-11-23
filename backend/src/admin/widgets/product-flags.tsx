@@ -53,16 +53,16 @@ const FLAGS: Flag[] = [
     offMessage: "Produs scos din Produse recomandate",
   },
   {
-    // Singurul criteriu pentru /oferte, secțiunea Oferte de pe home și
-    // badge-ul „Ofertă": un preț tăiat singur nu pune produsul acolo (decizia
-    // din 23.11.2026). Tagul e contract cu `OFFER_TAG` (backend
+    // Bifa ȘI un preț promoțional în vigoare pun produsul pe /oferte, în
+    // secțiunea Oferte de pe home și sub badge-ul „Ofertă" (decizia din
+    // 23.11.2026): niciuna singură nu ajunge. Tagul e contract cu `OFFER_TAG` (backend
     // `lib/discounted-products.ts`) și `SALE_TAG` (storefront `lib/util/sale.ts`).
     tag: "oferta",
     icon: <ReceiptPercent />,
     title: "Ofertă specială",
-    hint: "Apare pe /oferte, cu badge-ul „Ofertă”.",
+    hint: "Cu preț promoțional, apare pe /oferte cu badge-ul „Ofertă”.",
     details:
-      "Doar produsele bifate apar pe /oferte, în secțiunea Oferte de pe prima pagină și cu badge-ul „Ofertă”. Prețul promoțional din cardul „Preț” singur nu e suficient: un produs redus dar nebifat își păstrează prețul tăiat, fără să apară pe /oferte.",
+      "Pe /oferte, în secțiunea Oferte de pe prima pagină și cu badge-ul „Ofertă” apar produsele bifate care au și preț promoțional (cardul „Preț”). Bifat la preț întreg nu apare; redus dar nebifat își păstrează prețul tăiat, fără să apară pe /oferte.",
     onMessage: "Produs adăugat la Oferte",
     offMessage: "Produs scos din Oferte",
   },
