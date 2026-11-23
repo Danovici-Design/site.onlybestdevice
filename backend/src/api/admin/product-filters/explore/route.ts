@@ -2,7 +2,13 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "zod"
 
 import { escapeLike, foldSql, foldTerm, searchTerms } from "../../../../lib/catalog-search"
-import { discountedProductsSql } from "../../../../lib/discounted-products"
+import {
+  OFFER_EXCLUDE_TAG,
+  OFFER_TAG,
+  discountedProductsSql,
+  offersPredicateSql,
+  taggedProductsSql,
+} from "../../../../lib/discounted-products"
 import { badRequest, deps } from "../../../../lib/product-filters/admin"
 import {
   attributesForCategories,
@@ -35,8 +41,6 @@ const NONE = "__none"
 const FILTER_PREFIX = "f_"
 const BRAND_KEY = "brand"
 const CURRENCY = "ron"
-/** Tagul bifei „Ofertă specială" — același ca `SALE_TAG` din /store/catalog. */
-const SALE_TAG = "oferta"
 
 const QuerySchema = z
   .object({
@@ -58,11 +62,11 @@ const QuerySchema = z
      */
     discount: z.enum(["yes", "no"]).optional(),
     /**
-     * Pagina „Oferte" din admin: `all` = exact ce e pe /oferte (bifa „Ofertă
-     * specială" SAU redus acum), `picked` = doar bifatele, `discounted` = doar
-     * cele reduse acum.
+     * Pagina „Oferte" din admin: `all` = exact ce e pe /oferte, `picked` =
+     * bifate „Ofertă specială", `discounted` = reduse acum și neascunse,
+     * `hidden` = bifate „Ascuns de pe /oferte".
      */
-    offers: z.enum(["all", "picked", "discounted"]).optional(),
+    offers: z.enum(["all", "picked", "discounted", "hidden"]).optional(),
     sort: z
       .enum(["newest", "oldest", "title", "price_asc", "price_desc", "stock_asc", "stock_desc"])
       .default("newest"),
@@ -212,20 +216,15 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   if (q.offers) {
-    const pickedSql = `p.id IN (
-        SELECT pt.product_id
-        FROM product_tags pt
-        JOIN product_tag t ON t.id = pt.product_tag_id AND t.deleted_at IS NULL
-        WHERE LOWER(t.value) = ${bind(SALE_TAG, "offer")}
-      )`
-    const discountedSql = `p.id IN (${discountedProductsSql})`
-    scopeWhere.push(
-      q.offers === "picked"
-        ? pickedSql
-        : q.offers === "discounted"
-          ? discountedSql
-          : `(${pickedSql} OR ${discountedSql})`
-    )
+    const offer = bind(OFFER_TAG, "offer")
+    const exclude = bind(OFFER_EXCLUDE_TAG, "nooffer")
+    const byView = {
+      all: offersPredicateSql(offer, exclude),
+      picked: `p.id IN (${taggedProductsSql(offer)})`,
+      discounted: `(p.id IN (${discountedProductsSql}) AND p.id NOT IN (${taggedProductsSql(exclude)}))`,
+      hidden: `p.id IN (${taggedProductsSql(exclude)})`,
+    }
+    scopeWhere.push(byView[q.offers])
   }
   if (q.discount) {
     scopeWhere.push(

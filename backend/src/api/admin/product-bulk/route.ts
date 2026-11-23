@@ -6,7 +6,10 @@ import {
 } from "@medusajs/medusa/core-flows"
 import { z } from "zod"
 
+import { OFFER_EXCLUDE_TAG, OFFER_TAG } from "../../../lib/discounted-products"
+import { removeLiveSalePrices } from "../../../lib/pricing"
 import { snapshotBeforeDelete } from "../../../lib/products/restore"
+import { applyTagToProducts } from "../../../scripts/lib/product-tag-migration"
 import { SH_SERVICES_HANDLE } from "../../../lib/second-hand"
 import { WARRANTY_HANDLE } from "../../../lib/warranty-prices"
 
@@ -14,7 +17,7 @@ import { WARRANTY_HANDLE } from "../../../lib/warranty-prices"
  * POST /admin/product-bulk
  *
  * Acțiunile în masă din lista de produse a adminului (pagina „Produse"):
- * stare, vizibilitate, categorie, ștergere — pe produsele bifate sau pe toate
+ * stare, vizibilitate, categorie, oferte, ștergere — pe produsele bifate sau pe toate
  * cele filtrate (lista trimite id-urile, luate din `/explore?ids_only=true`).
  *
  * Totul trece prin workflow-urile Medusa, nu prin SQL direct: așa se emit
@@ -35,6 +38,11 @@ const ACTIONS = [
   "category_add",
   "category_remove",
   "category_set",
+  "offer_add",
+  "offer_remove",
+  "offer_clear",
+  "offer_hide",
+  "offer_unhide",
   "delete",
 ] as const
 
@@ -140,6 +148,54 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           done += products.length
           break
         }
+
+        // Bifa „Ofertă specială": doar tagul. Un produs debifat dar redus
+        // rămâne pe /oferte — pentru scoaterea completă e `offer_clear`.
+        case "offer_add":
+        case "offer_remove":
+          done += await applyTagToProducts(req.scope, {
+            productIds: batch,
+            tagValue: OFFER_TAG,
+            mode: action === "offer_add" ? "add" : "remove",
+          })
+          break
+
+        // Scoate produsele de pe /oferte de tot: debifează și șterge prețul
+        // promoțional în vigoare (produsul revine la prețul normal).
+        case "offer_clear": {
+          await applyTagToProducts(req.scope, {
+            productIds: batch,
+            tagValue: OFFER_TAG,
+            mode: "remove",
+          })
+          await removeLiveSalePrices(req.scope, batch)
+          done += batch.length
+          break
+        }
+
+        // Scoate de pe /oferte păstrând reducerea: bifa „Ascuns de pe /oferte”
+        // și fără „Ofertă specială” (care ar avea întâietate).
+        case "offer_hide":
+          await applyTagToProducts(req.scope, {
+            productIds: batch,
+            tagValue: OFFER_TAG,
+            mode: "remove",
+          })
+          await applyTagToProducts(req.scope, {
+            productIds: batch,
+            tagValue: OFFER_EXCLUDE_TAG,
+            mode: "add",
+          })
+          done += batch.length
+          break
+
+        case "offer_unhide":
+          done += await applyTagToProducts(req.scope, {
+            productIds: batch,
+            tagValue: OFFER_EXCLUDE_TAG,
+            mode: "remove",
+          })
+          break
 
         case "delete":
           await snapshotBeforeDelete(req.scope, batch)

@@ -2,6 +2,7 @@ import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { DetailWidgetProps, AdminProduct } from "@medusajs/types"
 import {
   Bookmarks,
+  EyeSlash,
   ReceiptPercent,
   ShieldCheck,
   Star,
@@ -64,6 +65,20 @@ const FLAGS: Flag[] = [
       "Produsele cu preț promoțional apar oricum pe /oferte. Bifa pune produsul acolo și fără reducere și îl urcă în fața listei, înaintea celor doar reduse. Debifat, un produs redus rămâne pe /oferte cât timp are prețul promoțional.",
     onMessage: "Produs adăugat la Oferte",
     offMessage: "Produs scos din Oferte",
+  },
+  {
+    // Opusul automatismului: un produs redus intră singur pe /oferte. Bifa asta
+    // îl ține afară fără să-i atingă prețul promoțional. Tagul e contract cu
+    // `OFFER_EXCLUDE_TAG` (backend `lib/discounted-products.ts`, storefront
+    // `lib/util/sale.ts`).
+    tag: "fara-oferte",
+    icon: <EyeSlash />,
+    title: "Ascuns de pe /oferte",
+    hint: "Păstrează reducerea, dar nu apare pe /oferte.",
+    details:
+      "Produsul își păstrează prețul promoțional și prețul tăiat, dar nu mai apare pe /oferte, nici în secțiunea Oferte de pe prima pagină, și nu primește badge-ul „Ofertă”. Dacă e bifat și „Ofertă specială”, aceea are întâietate.",
+    onMessage: "Produs ascuns de pe /oferte",
+    offMessage: "Produsul apare din nou pe /oferte, dacă are reducere",
   },
   {
     // Spre deosebire de Ofertă sau Recomandat, aici lipsa bifei nu e o valoare

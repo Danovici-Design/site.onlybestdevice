@@ -34,3 +34,31 @@ export const discountedProductsSql = `
                AND COALESCE(bp.rules_count, 0) = 0
   WHERE v.deleted_at IS NULL
     AND sp.amount < bp.amount`
+
+/** Tagul bifei „Ofertă specială": produsul e pe /oferte, primul, cu sau fără reducere. */
+export const OFFER_TAG = "oferta"
+
+/**
+ * Tagul bifei „Ascuns de pe /oferte": produsul își păstrează reducerea (și
+ * prețul tăiat), dar nu intră pe /oferte și nu primește badge-ul „Ofertă”.
+ * „Ofertă specială” are întâietate — un produs bifat cu amândouă rămâne pe
+ * /oferte. Aliniat cu `OFFER_EXCLUDE_TAG` din storefront (`lib/util/sale.ts`).
+ */
+export const OFFER_EXCLUDE_TAG = "fara-oferte"
+
+/** Produsele care poartă tagul legat la `tagBinding` (ex. `:sale_0`). */
+export const taggedProductsSql = (tagBinding: string) => `
+  SELECT pt.product_id
+  FROM product_tags pt
+  JOIN product_tag t ON t.id = pt.product_tag_id AND t.deleted_at IS NULL
+  WHERE LOWER(t.value) = ${tagBinding}`
+
+/**
+ * Regula /oferte, ca predicat pe `p.id`: bifat „Ofertă specială” SAU (redus
+ * acum ȘI nebifat „Ascuns de pe /oferte”). Folosită de /store/catalog și de
+ * pagina „Oferte” din admin, ca cele două să numere la fel.
+ */
+export const offersPredicateSql = (offerBinding: string, excludeBinding: string) =>
+  `(p.id IN (${taggedProductsSql(offerBinding)})
+    OR (p.id IN (${discountedProductsSql})
+        AND p.id NOT IN (${taggedProductsSql(excludeBinding)})))`

@@ -12,8 +12,18 @@ export const SALE_BADGE_LABEL = "Ofertă"
  */
 const SALE_TAG = "oferta"
 
+/**
+ * Tagul bifei „Ascuns de pe /oferte": reducerea rămâne (preț tăiat), dar fără
+ * /oferte și fără badge. Aliniat cu `OFFER_EXCLUDE_TAG` din
+ * `backend/src/lib/discounted-products.ts`.
+ */
+const OFFER_EXCLUDE_TAG = "fara-oferte"
+
+const hasTag = (product: HttpTypes.StoreProduct, tag: string): boolean =>
+  (product.tags ?? []).some((t) => (t.value ?? "").toLowerCase() === tag)
+
 const isPicked = (product: HttpTypes.StoreProduct): boolean =>
-  (product.tags ?? []).some((t) => (t.value ?? "").toLowerCase() === SALE_TAG)
+  hasTag(product, SALE_TAG)
 
 /**
  * O variantă are acum un preț promoțional real: vine dintr-o price list de tip
@@ -33,8 +43,10 @@ const isDiscounted = (product: HttpTypes.StoreProduct): boolean =>
   })
 
 /**
- * Produsul e la ofertă: bifat „Ofertă" în admin SAU redus acum. Aceeași regulă
- * ca lista de pe /oferte, ca badge-ul și pagina să nu se contrazică.
+ * Produsul e la ofertă: bifat „Ofertă specială" SAU (redus acum ȘI nebifat
+ * „Ascuns de pe /oferte"). Aceeași regulă ca lista de pe /oferte
+ * (`offersPredicateSql`), ca badge-ul și pagina să nu se contrazică.
  */
 export const isSaleProduct = (product: HttpTypes.StoreProduct): boolean =>
-  isPicked(product) || isDiscounted(product)
+  isPicked(product) ||
+  (isDiscounted(product) && !hasTag(product, OFFER_EXCLUDE_TAG))

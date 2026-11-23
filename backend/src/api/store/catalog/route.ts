@@ -14,7 +14,12 @@ import {
 } from "../../../lib/product-filters/config"
 import { matchKey, numericSortKey } from "../../../lib/product-filters/normalize"
 import { escapeLike, foldSql, foldTerm, searchTerms } from "../../../lib/catalog-search"
-import { discountedProductsSql } from "../../../lib/discounted-products"
+import {
+  OFFER_EXCLUDE_TAG,
+  OFFER_TAG,
+  offersPredicateSql,
+  taggedProductsSql,
+} from "../../../lib/discounted-products"
 
 /**
  * Catalog filtrat, cu fațete numărate în SQL.
@@ -67,8 +72,9 @@ const QuerySchema = z.object({
   /** Interval de preț „min-max"; capetele sunt opționale („-500", „100-"). */
   price: z.string().optional(),
   /**
-   * Ofertele: produsele bifate „Ofertă" în admin (tagul `oferta`) PLUS cele
-   * care au acum un preț promoțional real — vezi `discountedProductsSql`.
+   * Ofertele: produsele bifate „Ofertă specială" în admin PLUS cele care au
+   * acum un preț promoțional real și nu sunt bifate „Ascuns de pe /oferte" —
+   * vezi `offersPredicateSql`.
    * Bifatele vin primele la sortarea implicită.
    */
   sale: z
@@ -128,19 +134,6 @@ const normName = (s: string): string =>
  * închide la nivel de URL.
  */
 const CATEGORY_FACET_BLOCKLIST = new Set(["fara categorie", "oferte"])
-
-/**
- * Tagul care marchează un produs ca fiind la ofertă.
- *
- * Exact unul, și exact cel pe care îl scrie bifa „La ofertă" din admin: dacă
- * am accepta aici și sinonime moștenite din import (`sale`, `reducere`, …), un
- * produs care le poartă ar apărea pe /oferte în timp ce bifa arată „Preț
- * normal", iar operatorul n-ar avea cum să-l scoată din admin — bifa scoate
- * doar `oferta`. Trebuie să rămână aliniat cu `SALE_TAG` din storefront
- * (`lib/util/sale.ts`).
- */
-const SALE_TAG = "oferta"
-
 
 /** Cheia filtrului de marcă — numele lui se scot din fațeta „Categorie". */
 const BRAND_KEY = "brand"
@@ -340,14 +333,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // Bifa „Ofertă" SAU o reducere în vigoare; bifatele sunt marcate în `picked`,
   // ca selecția echipei să rămână în fața listei, nu îngropată printre ~200 de
   // produse reduse.
-  const pickedSql = `p.id IN (
-        SELECT pt.product_id
-        FROM product_tags pt
-        JOIN product_tag t ON t.id = pt.product_tag_id AND t.deleted_at IS NULL
-        WHERE LOWER(t.value) = ${bind(SALE_TAG, "sale")}
-      )`
+  const pickedSql = `p.id IN (${taggedProductsSql(bind(OFFER_TAG, "sale"))})`
   if (q.sale) {
-    scopeWhere.push(`(${pickedSql} OR p.id IN (${discountedProductsSql}))`)
+    scopeWhere.push(
+      offersPredicateSql(bind(OFFER_TAG, "sale"), bind(OFFER_EXCLUDE_TAG, "nosale"))
+    )
   }
 
   // Campania îngustează scope-ul la fel ca oferta, ca fațetele să descrie lista.

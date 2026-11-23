@@ -153,6 +153,11 @@ const OFFER_VIEWS = [
     "Redus acum",
     "Au preț promoțional în vigoare, sub prețul normal. Intră automat pe /oferte.",
   ],
+  [
+    "hidden",
+    "Ascunse",
+    "Bifate „Ascuns de pe /oferte”: își păstrează reducerea, dar nu apar pe /oferte.",
+  ],
 ] as const
 type OfferView = (typeof OFFER_VIEWS)[number][0]
 
