@@ -1,9 +1,6 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
-import {
-  cancelOrderWorkflow,
-  completeOrderWorkflow,
-} from "@medusajs/core-flows"
+import { completeOrderWorkflow } from "@medusajs/core-flows"
 import { z } from "zod"
 
 import { hasBankAccount } from "../../../../../lib/company/bank-account"
@@ -21,6 +18,7 @@ import {
   type OrderStatusCode,
 } from "../../../../../lib/orders/order-status"
 import { withComputedStatuses } from "../../../../../lib/orders/computed-status"
+import { cancelOrderFully } from "../../../../../lib/orders/cancel-order-fully"
 
 const BodySchema = z.object({
   code: z.enum(ORDER_STATUS_CODES as [OrderStatusCode, ...OrderStatusCode[]]),
@@ -161,8 +159,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       return res.status(409).json({ message: "Comanda e deja anulată." })
     }
     try {
-      await cancelOrderWorkflow(req.scope).run({
-        input: { order_id: order.id },
+      // Anulează întâi livrările rămase (și pe cele expediate), altfel Medusa
+      // refuză cu „All fulfillments must be canceled…”.
+      await cancelOrderFully(req.scope, {
+        order_id: order.id,
+        canceled_by: (req as any).auth_context?.actor_id,
       })
     } catch (e: any) {
       logger.error(`[status] Anularea comenzii ${order.id} a eșuat: ${e?.message}`)
