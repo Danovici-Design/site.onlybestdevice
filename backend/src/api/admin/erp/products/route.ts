@@ -25,6 +25,12 @@ import { upsertProducts, type ProductInput } from "../../../../lib/erp/products"
  * `price`, i se actualizeaza pretul de baza — asa ajung pe site si specificatiile,
  * si preturile schimbate in gestiune dupa creare.
  *
+ * Aparat second hand (un IMEI din gestiune): pozitia vine cu
+ *   "second_hand": { "grade": "excelent", "battery_health": 87,
+ *                    "warranty_months": 12, "notes": "…" }
+ * si produsul se creeaza cu tagul `second-hand` + datele in `metadata.sh_*`,
+ * exact ce ar fi pus bifa si cardul „Second Hand" din admin. Doar la creare.
+ *
  * Autentificare: ca toate rutele /admin — Secret API Key in HTTP Basic, cheia pe
  * post de username si parola goala.
  */
