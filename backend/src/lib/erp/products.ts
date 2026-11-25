@@ -3,6 +3,7 @@ import { createProductsWorkflow, updateProductsWorkflow } from "@medusajs/medusa
 
 import { resolveCurrencyCode } from "../currency"
 import { readProductPrices, writeProductPrices } from "../pricing"
+import { SECOND_HAND_TAG, SH_GRADES, SH_META, type SecondHandGrade } from "../second-hand"
 import { applyStock, type StockInput } from "./stock"
 
 /**
@@ -37,6 +38,14 @@ import { applyStock, type StockInput } from "./stock"
  * Scrierea trece prin `lib/pricing.ts`, nu direct prin workflow: vectorul `prices`
  * e set complet, nu patch, deci o scriere naiva ar sterge celelalte preturi ale
  * variantei (alte monede, preturi pe regiune).
+ *
+ * Aparatele second hand pleaca din gestiune **cate unul pe IMEI**: fiecare are
+ * bateria, pretul si starea lui, iar pe site datele second hand stau pe produs
+ * (`metadata.sh_*`), nu pe varianta. Pozitia vine atunci cu `second_hand`, iar
+ * produsul se creeaza cu tagul `second-hand` (bifa din admin) si cu gradul,
+ * bateria, garantia si observatiile deja completate. Datele se scriu **doar la
+ * creare**: dupa aceea le corecteaza omul in cardul „Second Hand" din admin, iar
+ * un push ulterior nu trebuie sa-i suprascrie munca.
  */
 
 export type ProductInput = {
@@ -56,6 +65,15 @@ export type ProductInput = {
    */
   specs?: Record<string, unknown> | null
   status?: "draft" | "published" | null
+  /** Aparat second hand (un IMEI din gestiune): tag + datele din cardul admin. */
+  second_hand?: SecondHandInput | null
+}
+
+export type SecondHandInput = {
+  grade?: string | null
+  battery_health?: number | null
+  warranty_months?: number | null
+  notes?: string | null
 }
 
 export type ProductResult = {
@@ -119,6 +137,47 @@ const normalizeSpecs = (specs: ProductInput["specs"]): Record<string, string> | 
   }
 
   return Object.keys(clean).length ? clean : null
+}
+
+/**
+ * Datele second hand venite din ERP, in cheile pe care le citesc cardul din
+ * admin si storefront-ul. Valorile in afara plajei cardului (grad necunoscut,
+ * baterie peste 100%) se sar, nu pica produsul: cardul le poate completa dupa.
+ */
+export const secondHandMetadata = (
+  input: SecondHandInput | null | undefined,
+): Record<string, string | number> | null => {
+  if (!input || typeof input !== "object") return null
+
+  const meta: Record<string, string | number> = {}
+
+  const grade = typeof input.grade === "string" ? input.grade.trim() : ""
+  if (SH_GRADES.includes(grade as SecondHandGrade)) meta[SH_META.grade] = grade
+
+  const battery = Number(input.battery_health)
+  if (input.battery_health != null && battery >= 1 && battery <= 100) {
+    meta[SH_META.battery_health] = Math.round(battery)
+  }
+
+  const warranty = Number(input.warranty_months)
+  if (input.warranty_months != null && warranty >= 1 && warranty <= 60) {
+    meta[SH_META.warranty_months] = Math.round(warranty)
+  }
+
+  const notes = typeof input.notes === "string" ? input.notes.trim() : ""
+  if (notes) meta[SH_META.notes] = notes.slice(0, 1000)
+
+  return meta
+}
+
+/** Id-ul tagului `second-hand`, creat la nevoie (instalatie curata). */
+const resolveSecondHandTagId = async (container: any): Promise<string> => {
+  const productService = container.resolve(Modules.PRODUCT)
+  const [found] = await productService.listProductTags({ value: SECOND_HAND_TAG }, { take: 1 })
+  if (found?.id) return found.id
+
+  const [created] = await productService.createProductTags([{ value: SECOND_HAND_TAG }])
+  return created.id
 }
 
 /**
@@ -335,6 +394,8 @@ export const upsertProducts = async (
 
     const handles = await resolveHandles(container, toCreate)
 
+    let secondHandTagId: string | null = null
+
     for (const input of toCreate) {
       const handle = handles.get(input.sku)!
       const price =
@@ -342,8 +403,15 @@ export const upsertProducts = async (
           ? Math.round(input.price * 100) / 100
           : null
       const specs = normalizeSpecs(input.specs)
+      const secondHand = secondHandMetadata(input.second_hand)
 
       try {
+        if (secondHand && !secondHandTagId) {
+          secondHandTagId = await resolveSecondHandTagId(container)
+        }
+
+        const metadata = specs || secondHand ? { ...(specs ? { specs } : {}), ...(secondHand ?? {}) } : undefined
+
         const { result: created } = await createProductsWorkflow(container).run({
           input: {
             products: [
@@ -359,7 +427,9 @@ export const upsertProducts = async (
                 sales_channels: [{ id: defaultChannel.id }],
                 // Acelasi loc pe care il scrie extract-product-specs.ts si il
                 // citeste tab-ul de specificatii din storefront.
-                metadata: specs ? { specs } : undefined,
+                // Second hand: datele din cardul admin (sh_*) + bifa (tagul).
+                metadata,
+                ...(secondHand && secondHandTagId ? { tag_ids: [secondHandTagId] } : {}),
                 options: [{ title: OPTION_TITLE, values: [OPTION_VALUE] }],
                 variants: [
                   {
