@@ -1,6 +1,7 @@
 import repeat from "@lib/util/repeat"
 import { getWarrantyProduct } from "@lib/data/warranty"
 import { groupWarrantyLines, shouldOfferWarranty } from "@lib/util/warranty"
+import { giftTitlesFor } from "@lib/util/gifts"
 import { HttpTypes } from "@medusajs/types"
 
 import Item from "@modules/cart/components/item"
@@ -39,6 +40,7 @@ const ItemsTemplate = async ({ cart }: ItemsTemplateProps) => {
                 <Item
                   key={item.id}
                   item={item}
+                  gifts={giftTitlesFor(item.product_id, items)}
                   currencyCode={cart?.currency_code}
                   warranty={warranty}
                   offerWarranty={offers.has(item.id)}

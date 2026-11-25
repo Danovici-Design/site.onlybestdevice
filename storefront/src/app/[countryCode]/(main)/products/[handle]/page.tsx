@@ -10,6 +10,7 @@ import { getSecondHandServices } from "@lib/data/second-hand"
 import { isSecondHandProduct } from "@lib/util/second-hand"
 import { canonical } from "@lib/util/canonical"
 import { canOfferWarrantyFor } from "@lib/util/warranty"
+import { GiftOffer, giftItemsOf, giftOffersFor } from "@lib/util/gifts"
 import { descriptionText } from "@lib/util/description-text"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { productSeo } from "@lib/util/seo"
@@ -122,7 +123,12 @@ export default async function ProductPage(props: Props) {
     return list.filter((h): h is string => typeof h === "string" && h.length > 0)
   })()
 
-  const [upgrades, reviewStats, warranty, filters, services] = await Promise.all([
+  // Cadourile bifate în admin („Vine cu cadou"): le cerem prin listarea
+  // obișnuită, ca prețul (cel tăiat) și stocul să vină din aceeași sursă ca
+  // restul paginii.
+  const giftItems = giftItemsOf(pricedProduct)
+
+  const [upgrades, reviewStats, warranty, filters, services, gifts] = await Promise.all([
     upgradeHandles.length
       ? listProducts({
           countryCode: params.countryCode,
@@ -149,6 +155,17 @@ export default async function ProductPage(props: Props) {
     isSecondHandProduct(pricedProduct)
       ? getSecondHandServices({ countryCode: params.countryCode })
       : Promise.resolve(undefined),
+    giftItems.length
+      ? listProducts({
+          countryCode: params.countryCode,
+          queryParams: {
+            id: Array.from(new Set(giftItems.map((g) => g.product_id))),
+            limit: giftItems.length,
+          },
+        })
+          .then(({ response }) => giftOffersFor(giftItems, response.products))
+          .catch(() => [] as GiftOffer[])
+      : Promise.resolve([] as GiftOffer[]),
   ])
 
   // Breadcrumb: categorie → marcă, din ierarhia completă de categorii (produsul
@@ -252,6 +269,7 @@ export default async function ProductPage(props: Props) {
         upgrades={upgrades}
         warranty={warranty}
         services={services}
+        gifts={gifts}
         reviewStats={reviewStats}
         crumbs={crumbs}
       />

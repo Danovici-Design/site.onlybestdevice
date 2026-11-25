@@ -171,16 +171,24 @@ const isAddonItem = (i: any) =>
 
 const isAttachedItem = (i: any) => isWarrantyItem(i) || isAddonItem(i)
 
+/** Cadoul (bifa „Vine cu cadou"): produs real, cu poză, dar legat de altul. */
+const isGiftItem = (i: any) =>
+  typeof i.metadata?.gift_for === "string" && i.metadata.gift_for !== ""
+
 const attachedTarget = (i: any) =>
-  isWarrantyItem(i) ? i.metadata?.warranty_for : i.metadata?.addon_for
+  isGiftItem(i)
+    ? i.metadata?.gift_for
+    : isWarrantyItem(i)
+      ? i.metadata?.warranty_for
+      : i.metadata?.addon_for
 
 const groupWarrantyItems = (items: any[]) => {
-  const warranties = items.filter(isAttachedItem)
+  const warranties = items.filter((i) => isAttachedItem(i) || isGiftItem(i))
   if (!warranties.length) return items
   const placed = new Set<any>()
   const out: any[] = []
   for (const item of items) {
-    if (isAttachedItem(item)) continue
+    if (isAttachedItem(item) || isGiftItem(item)) continue
     out.push(item)
     for (const w of warranties) {
       if (!placed.has(w) && item.product_id && attachedTarget(w) === item.product_id) {
@@ -210,6 +218,12 @@ const renderOrderItems = (
         : i.metadata?.addon_for_title
       const coveredTitle =
         warranty && typeof coveredRaw === "string" ? coveredRaw : null
+      const gift = isGiftItem(i)
+      const giftFor =
+        gift && typeof i.metadata?.gift_for_title === "string"
+          ? i.metadata.gift_for_title
+          : null
+      const giftValue = gift ? Number(i.compare_at_unit_price) * Number(i.quantity) : 0
       const title = escape(i.product_title || i.title || "")
       const titleEl = href
         ? `<a href="${escape(href)}" style="color:${COLOR.dark};text-decoration:none;font-weight:600;">${title}</a>`
@@ -223,9 +237,10 @@ const renderOrderItems = (
           <span style="font-size:14px;line-height:1.4;">${titleEl}</span>
           ${i.variant_title && i.variant_title !== (i.product_title || i.title) ? `<br><span style="color:${COLOR.muted};font-size:13px;line-height:1.5;">${escape(i.variant_title)}</span>` : ""}
           ${coveredTitle ? `<br><span style="color:${COLOR.muted};font-size:13px;line-height:1.5;">pentru ${escape(coveredTitle)}</span>` : ""}
+          ${gift ? `<br><span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:#ecfdf5;color:#047857;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">Cadou</span>${giftFor ? `<span style="color:${COLOR.muted};font-size:13px;"> la ${escape(giftFor)}</span>` : ""}` : ""}
         </td>
         <td valign="top" style="padding:14px 0;border-bottom:1px solid ${COLOR.border};text-align:center;color:${COLOR.muted};font-size:14px;">${i.quantity}</td>
-        <td valign="top" style="padding:14px 0;border-bottom:1px solid ${COLOR.border};text-align:right;font-variant-numeric:tabular-nums;color:${COLOR.dark};font-size:14px;">${money(i.total, i.currency_code)}</td>
+        <td valign="top" style="padding:14px 0;border-bottom:1px solid ${COLOR.border};text-align:right;font-variant-numeric:tabular-nums;color:${COLOR.dark};font-size:14px;">${gift && giftValue > 0 ? `<span style="color:${COLOR.muted};text-decoration:line-through;font-size:12px;">${money(giftValue, i.currency_code)}</span><br>` : ""}${gift ? `<strong style="color:#047857;">Gratuit</strong>` : money(i.total, i.currency_code)}</td>
       </tr>`
     })
     .join("")

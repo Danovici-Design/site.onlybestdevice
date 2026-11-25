@@ -23,6 +23,12 @@ import { clx } from "@medusajs/ui"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Thumbnail from "@modules/products/components/thumbnail"
 import {
+  GiftBadge,
+  GiftIncludedNote,
+  GiftPrice,
+} from "@modules/cart/components/gift-line"
+import { giftTitlesFor, isGiftLine } from "@lib/util/gifts"
+import {
   ArrowRight,
   CheckCircle,
   Lock,
@@ -176,6 +182,7 @@ const CartDrawer = () => {
                         item={item}
                         currencyCode={currencyCode}
                         onNavigate={close}
+                        gifts={giftTitlesFor(item.product_id, items)}
                       />
                     ))}
                   </ul>
@@ -251,15 +258,24 @@ type DrawerItemProps = {
   item: HttpTypes.StoreCartLineItem
   currencyCode: string
   onNavigate: () => void
+  /** Cadourile din coș aduse de produsul ăsta. */
+  gifts?: string[]
 }
 
-const DrawerItem = ({ item, currencyCode, onNavigate }: DrawerItemProps) => {
+const DrawerItem = ({
+  item,
+  currencyCode,
+  onNavigate,
+  gifts = [],
+}: DrawerItemProps) => {
   const { refresh } = useSession()
   const [updating, setUpdating] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const warrantyFor = warrantyTargetTitle(item)
   // Opțiune a produsului de deasupra, nu produs: fără poză și fără link.
   const isWarranty = isAttachedLine(item)
+  // Cadoul vine și pleacă odată cu produsul: fără cantitate și fără ștergere.
+  const isGift = isGiftLine(item)
 
   // Acțiunile de server nu mai re-randează layout-ul cu un coș nou, pentru că
   // acesta nu mai citește coșul. Fiecare modificare trebuie să ceară explicit
@@ -316,16 +332,18 @@ const DrawerItem = ({ item, currencyCode, onNavigate }: DrawerItemProps) => {
               {item.product_title}
             </LocalizedClientLink>
           )}
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={busy}
-            aria-label="Elimină din coș"
-            className="shrink-0 rounded-full p-1.5 text-brand-dark/40 transition-colors hover:text-brand-accent disabled:opacity-40"
-            data-testid="cart-drawer-item-remove"
-          >
-            <Trash size={16} weight="regular" />
-          </button>
+          {!isGift && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={busy}
+              aria-label="Elimină din coș"
+              className="shrink-0 rounded-full p-1.5 text-brand-dark/40 transition-colors hover:text-brand-accent disabled:opacity-40"
+              data-testid="cart-drawer-item-remove"
+            >
+              <Trash size={16} weight="regular" />
+            </button>
+          )}
         </div>
 
         {/* La produsele cu o singură variantă, titlul variantei repetă titlul
@@ -341,10 +359,12 @@ const DrawerItem = ({ item, currencyCode, onNavigate }: DrawerItemProps) => {
             pentru {warrantyFor}
           </span>
         )}
+        {isGift && <GiftBadge item={item} />}
+        <GiftIncludedNote titles={gifts} />
 
         <div className="mt-1.5 flex items-center justify-between gap-3">
-          {/* Garanția urmează cantitatea produsului acoperit — fără butoane. */}
-          {isWarranty ? (
+          {/* Garanția și cadoul urmează cantitatea produsului — fără butoane. */}
+          {isWarranty || isGift ? (
             <span className="text-sm font-bold tabular-nums text-brand-dark/60">
               × {item.quantity}
             </span>
@@ -378,17 +398,21 @@ const DrawerItem = ({ item, currencyCode, onNavigate }: DrawerItemProps) => {
             </div>
           )}
 
-          <span
-            className={clx(
-              "text-sm font-extrabold text-brand-dark",
-              deleting && "opacity-40"
-            )}
-          >
-            {convertToLocale({
-              amount: item.total ?? 0,
-              currency_code: currencyCode,
-            })}
-          </span>
+          {isGift ? (
+            <GiftPrice item={item} currencyCode={currencyCode} />
+          ) : (
+            <span
+              className={clx(
+                "text-sm font-extrabold text-brand-dark",
+                deleting && "opacity-40"
+              )}
+            >
+              {convertToLocale({
+                amount: item.total ?? 0,
+                currency_code: currencyCode,
+              })}
+            </span>
+          )}
         </div>
       </div>
     </li>

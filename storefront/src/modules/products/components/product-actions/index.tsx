@@ -30,6 +30,8 @@ import {
 import { warrantyOptionsFor } from "@lib/util/warranty"
 import ExtendedWarranty from "@modules/products/components/extended-warranty"
 import SecondHandAddons from "@modules/products/components/second-hand-addons"
+import GiftIncluded from "@modules/products/components/gift-included"
+import type { GiftOffer } from "@lib/util/gifts"
 import { addonOptionsFor, secondHandDetails } from "@lib/util/second-hand"
 import Installments from "@modules/products/components/installments"
 import LegalGuaranteeNotice from "@modules/products/components/legal-guarantee-notice"
@@ -51,6 +53,8 @@ type ProductActionsProps = {
   warranty?: HttpTypes.StoreProduct
   /** Serviciile Second Hand (baterie nouă, folie); doar pe produsele SH. */
   services?: HttpTypes.StoreProduct
+  /** Cadourile incluse („Vine cu cadou"); le pune backend-ul în coș. */
+  gifts?: GiftOffer[]
   disabled?: boolean
   /** Providerul TBI e activ pe regiune — vezi product-actions-wrapper. */
   tbiAvailable?: boolean
@@ -72,6 +76,7 @@ export default function ProductActions({
   upgrades = [],
   warranty,
   services,
+  gifts = [],
   disabled,
   tbiAvailable = false,
   offerPeriods = {},
@@ -460,6 +465,8 @@ export default function ProductActions({
             <span className="block w-32 h-9 bg-brand-light animate-pulse rounded-md" />
           )}
         </div>
+
+        <GiftIncluded gifts={gifts} />
 
         {(product.variants?.length ?? 0) > 1 && (
           <div className="flex flex-col gap-y-5">

@@ -2,6 +2,7 @@ import { listCartPaymentMethods } from "@lib/data/payment"
 import { getOfferPeriods } from "@lib/data/offer-periods"
 import { listProducts } from "@lib/data/products"
 import { HttpTypes } from "@medusajs/types"
+import type { GiftOffer } from "@lib/util/gifts"
 import ProductActions from "@modules/products/components/product-actions"
 
 /**
@@ -13,12 +14,14 @@ export default async function ProductActionsWrapper({
   upgrades,
   warranty,
   services,
+  gifts,
 }: {
   id: string
   region: HttpTypes.StoreRegion
   upgrades?: HttpTypes.StoreProduct[]
   warranty?: HttpTypes.StoreProduct
   services?: HttpTypes.StoreProduct
+  gifts?: GiftOffer[]
 }) {
   const [product, paymentMethods, offerPeriods] = await Promise.all([
     listProducts({
@@ -42,6 +45,7 @@ export default async function ProductActionsWrapper({
       upgrades={upgrades}
       warranty={warranty}
       services={services}
+      gifts={gifts}
       offerPeriods={offerPeriods}
       tbiAvailable={(paymentMethods ?? []).some((pm) =>
         pm.id.startsWith("pp_tbi")

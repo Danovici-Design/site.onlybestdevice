@@ -160,6 +160,10 @@ export async function addToCart({
       headers
     )
     .then(async () => {
+      // Produsul bifat „Vine cu cadou" își primește aici cadoul (linie de 0
+      // lei, legată de el) — îl pune backend-ul, din configurația din admin.
+      await syncWarranties(cart.id)
+
       const cartCacheTag = await getCacheTag("carts")
       revalidateTag(cartCacheTag)
 
@@ -276,8 +280,8 @@ export async function addAddonToCart({
 }
 
 /**
- * Realiniază garanțiile extinse cu produsele acoperite: aceeași cantitate,
- * scoase odată cu produsul. Regula stă în backend (`syncWarrantyLines`); aici
+ * Realiniază garanțiile extinse, serviciile SH și cadourile cu produsele lor:
+ * aceeași cantitate, scoase odată cu produsul, cadoul pus dacă lipsește. Regula stă în backend (`syncWarrantyLines`); aici
  * doar o declanșăm după orice schimbare care o poate strica. O eroare nu
  * blochează clientul — `alignWarrantiesBeforePayment` repară la finalizare.
  *

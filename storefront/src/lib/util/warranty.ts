@@ -2,6 +2,7 @@ import { HttpTypes } from "@medusajs/types"
 
 import { getPricesForVariant } from "./get-product-price"
 import { convertToLocale } from "./money"
+import { GIFT_FOR, isGiftLine } from "./gifts"
 import { ADDON_FOR, ADDON_FOR_TITLE, isAddonLine } from "./second-hand"
 
 /** Produsul de serviciu din Medusa, ascuns din catalog. */
@@ -216,7 +217,12 @@ export function isAttachedLine(item: AnyLine): boolean {
 }
 
 const attachedTarget = (item: AnyLine): unknown =>
-  item.metadata?.[isWarrantyLine(item) ? WARRANTY_FOR : ADDON_FOR]
+  item.metadata?.[
+    isGiftLine(item) ? GIFT_FOR : isWarrantyLine(item) ? WARRANTY_FOR : ADDON_FOR
+  ]
+
+/** Se așază sub produsul lui: garanțiile, serviciile SH și cadourile. */
+const isGrouped = (item: AnyLine) => isAttachedLine(item) || isGiftLine(item)
 
 /** Produsul pe care îl deservește o linie atașată, dacă e legată de unul. */
 export function warrantyTargetTitle(item: AnyLine): string | null {
@@ -237,13 +243,13 @@ export function warrantyTargetTitle(item: AnyLine): string | null {
  * produs a fost scos din coș cad la final.
  */
 export function groupWarrantyLines<T extends AnyLine>(items: T[]): T[] {
-  const warranties = items.filter(isAttachedLine)
+  const warranties = items.filter(isGrouped)
   if (!warranties.length) return items
 
   const placed = new Set<T>()
   const out: T[] = []
   for (const item of items) {
-    if (isAttachedLine(item)) continue
+    if (isGrouped(item)) continue
     out.push(item)
     for (const w of warranties) {
       if (!placed.has(w) && item.product_id && attachedTarget(w) === item.product_id) {

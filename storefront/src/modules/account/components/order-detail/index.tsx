@@ -3,6 +3,8 @@ import { formatCui, readCompanyFiscal } from "@lib/util/cui"
 import { clx } from "@medusajs/ui"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { isGiftLine } from "@lib/util/gifts"
+import { GiftBadge, GiftPrice } from "@modules/cart/components/gift-line"
 import {
   groupWarrantyLines,
   isAttachedLine,
@@ -189,14 +191,21 @@ const OrderDetail = ({ order }: { order: HttpTypes.StoreOrder }) => {
                       pentru {warrantyTargetTitle(item)}
                     </p>
                   )}
+                  {isGiftLine(item) && (
+                    <GiftBadge item={item} className="mt-0.5" />
+                  )}
                   <p className="text-xs text-brand-dark/60 mt-1">
                     {t.orders.items}: {item.quantity}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-medium text-brand-dark">
-                    {money(item.total)}
-                  </p>
+                  {isGiftLine(item) ? (
+                    <GiftPrice item={item} currencyCode={order.currency_code} />
+                  ) : (
+                    <p className="text-sm font-medium text-brand-dark">
+                      {money(item.total)}
+                    </p>
+                  )}
                 </div>
               </li>
             ))}

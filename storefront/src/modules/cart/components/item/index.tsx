@@ -14,6 +14,12 @@ import Thumbnail from "@modules/products/components/thumbnail"
 import WarrantyOffer from "@modules/cart/components/warranty-offer"
 import { lineItemThumbnail } from "@lib/util/line-item-thumbnail"
 import { isAttachedLine, warrantyTargetTitle } from "@lib/util/warranty"
+import { isGiftLine } from "@lib/util/gifts"
+import {
+  GiftBadge,
+  GiftIncludedNote,
+  GiftPrice,
+} from "@modules/cart/components/gift-line"
 import { Minus, Plus, Trash } from "@phosphor-icons/react/dist/ssr"
 import { useState } from "react"
 
@@ -27,6 +33,8 @@ type ItemProps = {
   offerWarranty?: boolean
   /** În rezumatul de finalizare, doar liniile adăugabile de acolo se pot scoate. */
   removable?: boolean
+  /** Cadourile din coș aduse de produsul ăsta (titluri). */
+  gifts?: string[]
 }
 
 const Item = ({
@@ -36,6 +44,7 @@ const Item = ({
   warranty,
   offerWarranty,
   removable,
+  gifts = [],
 }: ItemProps) => {
   const refresh = useSessionRefresh()
   const [updating, setUpdating] = useState(false)
@@ -48,6 +57,9 @@ const Item = ({
   // Garanția e o opțiune a produsului de deasupra, nu un produs: fără poză și
   // fără link (pagina produsului de serviciu e ascunsă din catalog).
   const isWarranty = isAttachedLine(item)
+  // Cadoul vine și pleacă odată cu produsul (îl ține backend-ul): cantitatea
+  // lui nu se alege și nu se poate scoate separat.
+  const isGift = isGiftLine(item)
 
   const maxQuantity = 10
 
@@ -102,6 +114,8 @@ const Item = ({
               pentru {warrantyFor}
             </Text>
           )}
+          {isGift && <GiftBadge item={item} className="mt-0.5" />}
+          <GiftIncludedNote titles={gifts} />
           {/* Dacă garanția se poate adăuga din rezumat, trebuie să se poată și
               scoate tot de aici — altfel clientul e obligat să se întoarcă în
               coș ca să anuleze o bifă pusă cu o secundă înainte. */}
@@ -119,6 +133,12 @@ const Item = ({
         </Table.Cell>
 
         <Table.Cell className="!pr-0">
+          {isGift ? (
+            <span className="flex flex-col items-end h-full justify-center">
+              <Text className="text-ui-fg-muted">{item.quantity}x</Text>
+              <GiftPrice item={item} currencyCode={currencyCode} />
+            </span>
+          ) : (
           <span className="flex flex-col items-end h-full justify-center">
             <span className="flex gap-x-1">
               <Text className="text-ui-fg-muted">{item.quantity}x </Text>
@@ -134,6 +154,7 @@ const Item = ({
               currencyCode={currencyCode}
             />
           </span>
+          )}
         </Table.Cell>
       </Table.Row>
     )
@@ -185,19 +206,23 @@ const Item = ({
             pentru {warrantyFor}
           </span>
         )}
-        <div className="mt-1 sm:hidden">
-          <LineItemUnitPrice
-            item={item}
-            style="tight"
-            currencyCode={currencyCode}
-          />
-        </div>
+        {isGift && <GiftBadge item={item} className="mt-0.5" />}
+        <GiftIncludedNote titles={gifts} />
+        {!isGift && (
+          <div className="mt-1 sm:hidden">
+            <LineItemUnitPrice
+              item={item}
+              style="tight"
+              currencyCode={currencyCode}
+            />
+          </div>
+        )}
 
         <div className="flex sm:hidden items-center justify-between gap-3 mt-3">
           {/* Cantitatea garanției urmează produsul acoperit (o garanție pe
               bucată) — o sincronizează backend-ul, nu clientul. */}
-          {isWarranty ? (
-            <WarrantyQuantity value={item.quantity} />
+          {isWarranty || isGift ? (
+            <WarrantyQuantity value={item.quantity} gift={isGift} />
           ) : (
             <QuantityStepper
               value={item.quantity}
@@ -207,16 +232,18 @@ const Item = ({
               disabled={deleting}
             />
           )}
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            aria-label="Elimină din coș"
-            className="w-10 h-10 rounded-full border border-brand-dark/15 text-brand-dark/70 hover:text-brand-accent hover:border-brand-accent flex items-center justify-center transition-colors disabled:opacity-50"
-            data-testid="product-delete-button"
-          >
-            {deleting ? <Spinner /> : <Trash size={16} weight="regular" />}
-          </button>
+          {!isGift && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              aria-label="Elimină din coș"
+              className="w-10 h-10 rounded-full border border-brand-dark/15 text-brand-dark/70 hover:text-brand-accent hover:border-brand-accent flex items-center justify-center transition-colors disabled:opacity-50"
+              data-testid="product-delete-button"
+            >
+              {deleting ? <Spinner /> : <Trash size={16} weight="regular" />}
+            </button>
+          )}
         </div>
 
         {error && (
@@ -225,8 +252,8 @@ const Item = ({
       </div>
 
       <div className="hidden sm:flex items-center justify-center">
-        {isWarranty ? (
-          <WarrantyQuantity value={item.quantity} />
+        {isWarranty || isGift ? (
+          <WarrantyQuantity value={item.quantity} gift={isGift} />
         ) : (
           <QuantityStepper
             value={item.quantity}
@@ -240,27 +267,40 @@ const Item = ({
 
       <div className="hidden sm:flex items-center justify-end gap-3">
         <div className="text-right">
-          <LineItemPrice
-            item={item}
-            style="tight"
-            currencyCode={currencyCode}
-          />
+          {isGift ? (
+            <GiftPrice item={item} currencyCode={currencyCode} />
+          ) : (
+            <LineItemPrice
+              item={item}
+              style="tight"
+              currencyCode={currencyCode}
+            />
+          )}
         </div>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={deleting}
-          aria-label="Elimină din coș"
-          className="w-9 h-9 rounded-full border border-brand-dark/15 text-brand-dark/60 hover:text-brand-accent hover:border-brand-accent flex items-center justify-center transition-colors disabled:opacity-50"
-          data-testid="product-delete-button"
-        >
-          {deleting ? <Spinner /> : <Trash size={14} weight="regular" />}
-        </button>
+        {isGift ? (
+          // Păstrează alinierea coloanei cu rândurile care au coș de gunoi.
+          <span className="w-9 h-9" aria-hidden />
+        ) : (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            aria-label="Elimină din coș"
+            className="w-9 h-9 rounded-full border border-brand-dark/15 text-brand-dark/60 hover:text-brand-accent hover:border-brand-accent flex items-center justify-center transition-colors disabled:opacity-50"
+            data-testid="product-delete-button"
+          >
+            {deleting ? <Spinner /> : <Trash size={14} weight="regular" />}
+          </button>
+        )}
       </div>
 
       <div className="col-span-2 flex sm:hidden items-center justify-between text-sm">
         <span className="text-brand-dark/55">Total</span>
-        <LineItemPrice item={item} style="tight" currencyCode={currencyCode} />
+        {isGift ? (
+          <GiftPrice item={item} currencyCode={currencyCode} />
+        ) : (
+          <LineItemPrice item={item} style="tight" currencyCode={currencyCode} />
+        )}
       </div>
 
       {offerWarranty && warranty && (
@@ -280,11 +320,15 @@ type StepperProps = {
   disabled?: boolean
 }
 
-/** Cantitatea fixă a unei garanții: câte bucăți din produs acoperă. */
-const WarrantyQuantity = ({ value }: { value: number }) => (
+/** Cantitatea fixă a unei garanții / a unui cadou: câte bucăți din produs. */
+const WarrantyQuantity = ({ value, gift }: { value: number; gift?: boolean }) => (
   <span
     className="inline-flex w-32 justify-center text-sm font-bold tabular-nums text-brand-dark/60"
-    title="Câte o garanție pentru fiecare bucată din produs"
+    title={
+      gift
+        ? "Câte un cadou pentru fiecare bucată din produs"
+        : "Câte o garanție pentru fiecare bucată din produs"
+    }
   >
     × {value}
   </span>

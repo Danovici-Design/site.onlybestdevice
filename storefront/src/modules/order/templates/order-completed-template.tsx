@@ -11,6 +11,8 @@ import AccountCard from "@modules/account/components/account-card"
 import CartTotals from "@modules/common/components/cart-totals"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import OnboardingCta from "@modules/order/components/onboarding-cta"
+import { isGiftLine } from "@lib/util/gifts"
+import { GiftBadge, GiftPrice } from "@modules/cart/components/gift-line"
 import {
   groupWarrantyLines,
   isAttachedLine,
@@ -232,6 +234,9 @@ export default async function OrderCompletedTemplate({
                         pentru {warrantyTargetTitle(item)}
                       </p>
                     )}
+                    {isGiftLine(item) && (
+                      <GiftBadge item={item} className="mt-0.5" />
+                    )}
                     <p className="text-xs text-brand-dark/60 mt-1">
                       <span data-testid="product-quantity">
                         {item.quantity}
@@ -241,9 +246,16 @@ export default async function OrderCompletedTemplate({
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-medium text-brand-dark tabular-nums">
-                      {money(item.total)}
-                    </p>
+                    {isGiftLine(item) ? (
+                      <GiftPrice
+                        item={item}
+                        currencyCode={order.currency_code}
+                      />
+                    ) : (
+                      <p className="text-sm font-medium text-brand-dark tabular-nums">
+                        {money(item.total)}
+                      </p>
+                    )}
                   </div>
                 </li>
               ))}

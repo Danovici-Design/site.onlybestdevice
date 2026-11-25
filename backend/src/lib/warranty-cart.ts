@@ -1,9 +1,17 @@
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import {
+  addToCartWorkflow,
   deleteLineItemsWorkflow,
   updateLineItemInCartWorkflow,
 } from "@medusajs/medusa/core-flows"
 
+import {
+  GIFT_FOR,
+  GIFT_FOR_TITLE,
+  activeGifts,
+  describeGifts,
+  type GiftItem,
+} from "./gifts"
 import { ADDON_FOR, SH_SERVICES_HANDLE } from "./second-hand"
 import { WARRANTY_HANDLE } from "./warranty-prices"
 
@@ -18,6 +26,8 @@ type CartLine = {
   quantity: number
   metadata: Record<string, unknown> | null
   created_at: string | Date
+  title?: string | null
+  product_title?: string | null
 }
 
 /**
@@ -39,8 +49,13 @@ type CartLine = {
  * adăugarea garanției, la schimbarea cantității, la ștergere și înainte de
  * crearea sesiunii de plată la finalizare.
  *
- * Întoarce `true` dacă a modificat coșul — atunci totalul s-a schimbat, iar
- * checkout-ul nu trebuie să plaseze comanda fără ca clientul să-l vadă.
+ * Tot aici se țin și cadourile (vezi `lib/gifts.ts`): produsul bifat „Vine cu
+ * cadou" își primește singur linia de cadou, la preț 0, cu aceeași cantitate;
+ * cadoul iese odată cu produsul sau când i se scoate bifa din admin.
+ *
+ * Întoarce `true` dacă a modificat totalul coșului — checkout-ul nu trebuie să
+ * plaseze comanda fără ca clientul să-l vadă. Cadourile nu contează aici: sunt
+ * gratuite, deci nu mișcă totalul.
  */
 export const syncWarrantyLines = async (
   scope: any,
@@ -58,6 +73,8 @@ export const syncWarrantyLines = async (
       "items.quantity",
       "items.metadata",
       "items.created_at",
+      "items.title",
+      "items.product_title",
     ],
     filters: { id: cartId },
   })
@@ -69,10 +86,20 @@ export const syncWarrantyLines = async (
   // el. Diferența: pot sta mai multe pe același produs (baterie ȘI folie), deci
   // dublura se judecă pe (produs, serviciu), nu doar pe produs.
   const isAddon = (i: CartLine) => i.product_handle === SH_SERVICES_HANDLE
+  // Cadoul e un produs obișnuit din catalog (o husă), deci nu se recunoaște
+  // după handle, ci după legătura din metadata.
+  const isGift = (i: CartLine) =>
+    typeof i.metadata?.[GIFT_FOR] === "string" && i.metadata[GIFT_FOR] !== ""
 
   const quantityByProduct = new Map<string, number>()
+  const titleByProduct = new Map<string, string>()
   for (const item of items) {
-    if (isWarranty(item) || isAddon(item) || !item.product_id) continue
+    if (isWarranty(item) || isAddon(item) || isGift(item) || !item.product_id)
+      continue
+    titleByProduct.set(
+      item.product_id,
+      item.product_title ?? item.title ?? ""
+    )
     quantityByProduct.set(
       item.product_id,
       (quantityByProduct.get(item.product_id) ?? 0) + Number(item.quantity)
@@ -133,11 +160,21 @@ export const syncWarrantyLines = async (
     }
   }
 
-  if (!toDelete.length && !toUpdate.length) return false
+  const gifts = await planGiftLines(
+    scope,
+    items.filter(isGift),
+    quantityByProduct
+  )
 
-  if (toDelete.length) {
+  const priced = toDelete.length > 0 || toUpdate.length > 0
+  if (!priced && !gifts.toDelete.length && !gifts.toUpdate.length && !gifts.toAdd.length) {
+    return false
+  }
+
+  const deleteIds = [...toDelete, ...gifts.toDelete]
+  if (deleteIds.length) {
     await deleteLineItemsWorkflow(scope).run({
-      input: { cart_id: cartId, ids: toDelete },
+      input: { cart_id: cartId, ids: deleteIds },
     })
   }
   for (const { id, quantity } of toUpdate) {
@@ -145,5 +182,107 @@ export const syncWarrantyLines = async (
       input: { cart_id: cartId, item_id: id, update: { quantity } },
     })
   }
-  return true
+
+  // Cadourile merg „în limita stocului": un cadou epuizat nu blochează coșul,
+  // pur și simplu nu intră (sau rămâne cu cantitatea pe care o mai acoperă).
+  for (const { id, quantity } of gifts.toUpdate) {
+    await updateLineItemInCartWorkflow(scope)
+      .run({ input: { cart_id: cartId, item_id: id, update: { quantity } } })
+      .catch(() => undefined)
+  }
+  if (gifts.toAdd.length) {
+    const details = await describeGifts(
+      scope,
+      gifts.toAdd.map((g) => g.gift)
+    )
+    const valueOf = new Map(details.map((d) => [d.variant_id, d.value]))
+    for (const { gift, target, quantity } of gifts.toAdd) {
+      const value = valueOf.get(gift.variant_id)
+      await addToCartWorkflow(scope)
+        .run({
+          input: {
+            cart_id: cartId,
+            items: [
+              {
+                variant_id: gift.variant_id,
+                quantity,
+                unit_price: 0,
+                // Prețul tăiat din coș: cât ar fi costat cadoul separat.
+                ...(value ? { compare_at_unit_price: value } : {}),
+                is_discountable: false,
+                metadata: {
+                  [GIFT_FOR]: target,
+                  [GIFT_FOR_TITLE]: titleByProduct.get(target) ?? "",
+                },
+              } as any,
+            ],
+          },
+        })
+        .catch(() => undefined)
+    }
+  }
+
+  return priced
+}
+
+/**
+ * Ce trebuie făcut cu liniile de cadou: care lipsesc (produs bifat fără cadoul
+ * lui în coș), care au cantitatea greșită și care trebuie scoase (produsul a
+ * ieșit din coș, bifa a fost oprită, cadoul a fost schimbat în admin, dublură).
+ */
+const planGiftLines = async (
+  scope: any,
+  giftLines: CartLine[],
+  quantityByProduct: Map<string, number>
+) => {
+  const toDelete: string[] = []
+  const toUpdate: { id: string; quantity: number }[] = []
+  const toAdd: { gift: GiftItem; target: string; quantity: number }[] = []
+
+  const productIds = [...quantityByProduct.keys()]
+  const giftsByProduct = new Map<string, GiftItem[]>()
+  if (productIds.length) {
+    const query = scope.resolve(ContainerRegistrationKeys.QUERY)
+    const { data } = await query.graph({
+      entity: "product",
+      fields: ["id", "metadata"],
+      filters: { id: productIds },
+    })
+    for (const p of data as any[]) {
+      const gifts = activeGifts(p.metadata)
+      if (gifts.length) giftsByProduct.set(p.id, gifts)
+    }
+  }
+
+  const seen = new Set<string>()
+  const sorted = [...giftLines].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+  for (const line of sorted) {
+    const target = line.metadata![GIFT_FOR] as string
+    const configured = (giftsByProduct.get(target) ?? []).some(
+      (g) => g.variant_id === line.variant_id
+    )
+    const wanted = configured ? quantityByProduct.get(target) ?? 0 : 0
+    const key = `${target}:${line.variant_id}`
+    if (wanted === 0 || seen.has(key)) {
+      toDelete.push(line.id)
+      continue
+    }
+    seen.add(key)
+    if (Number(line.quantity) !== wanted) {
+      toUpdate.push({ id: line.id, quantity: wanted })
+    }
+  }
+
+  for (const [target, gifts] of giftsByProduct) {
+    const quantity = quantityByProduct.get(target) ?? 0
+    if (!quantity) continue
+    for (const gift of gifts) {
+      if (seen.has(`${target}:${gift.variant_id}`)) continue
+      toAdd.push({ gift, target, quantity })
+    }
+  }
+
+  return { toDelete, toUpdate, toAdd }
 }

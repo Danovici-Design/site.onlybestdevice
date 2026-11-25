@@ -6,6 +6,7 @@ import {
   isAttachedLine,
   shouldOfferWarranty,
 } from "@lib/util/warranty"
+import { giftTitlesFor } from "@lib/util/gifts"
 import { HttpTypes } from "@medusajs/types"
 import { Table, clx } from "@medusajs/ui"
 
@@ -45,6 +46,7 @@ const ItemsPreviewTemplate = ({ cart, warranty }: ItemsTemplateProps) => {
                         type="preview"
                         currencyCode={cart.currency_code}
                         removable={isAttachedLine(item)}
+                        gifts={giftTitlesFor(item.product_id, items)}
                       />
                       {/* Propunerea stă pe rândul ei, pe toată lățimea
                           rezumatului — coloana de titlu e prea îngustă și ar

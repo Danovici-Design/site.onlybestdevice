@@ -12,6 +12,7 @@ import ProductInfo from "@modules/products/templates/product-info"
 import SecondHandDetails from "@modules/products/components/second-hand-details"
 import { notFound } from "next/navigation"
 import { HttpTypes } from "@medusajs/types"
+import type { GiftOffer } from "@lib/util/gifts"
 import type { ReviewStatsDTO } from "@lib/data/reviews"
 import type { ProductCrumb } from "@modules/products/components/product-breadcrumbs"
 
@@ -25,6 +26,8 @@ type ProductTemplateProps = {
   warranty?: HttpTypes.StoreProduct
   /** Serviciile Second Hand; doar pe produsele SH. */
   services?: HttpTypes.StoreProduct
+  /** Cadourile din „Vine cu cadou", deja filtrate pe stoc. */
+  gifts?: GiftOffer[]
   reviewStats?: ReviewStatsDTO
   crumbs?: ProductCrumb[]
 }
@@ -36,6 +39,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
   upgrades = [],
   warranty,
   services,
+  gifts = [],
   reviewStats,
   crumbs,
 }) => {
@@ -73,6 +77,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
                     upgrades={upgrades}
                     warranty={warranty}
                     services={services}
+                    gifts={gifts}
                   />
                 }
               >
@@ -82,6 +87,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
                   upgrades={upgrades}
                   warranty={warranty}
                   services={services}
+                  gifts={gifts}
                 />
               </Suspense>
             </div>

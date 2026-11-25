@@ -288,4 +288,39 @@ describe("toErpPayload", () => {
 
     expect(p.line_items[1].warranty_extra_months).toBe(12)
   })
+  it("marcheaza cadoul: marfa la 0 lei, legata de produsul care l-a adus", () => {
+    const p = toErpPayload({
+      ...base,
+      items: [
+        base.items[0],
+        {
+          id: "item_g",
+          variant_id: "variant_husa",
+          product_id: "prod_husa",
+          product_handle: "husa-iphone-15",
+          variant_sku: "HUSA-15-NEGRU",
+          product_title: "Husă iPhone 15",
+          variant_title: "Negru",
+          metadata: { gift_for: "prod_01H", gift_for_title: "iPhone 15" },
+          quantity: 1,
+          unit_price: 0,
+          compare_at_unit_price: 79,
+          tax_total: 0,
+          total: 0,
+        },
+      ],
+    })
+
+    expect(p.line_items[0]).toMatchObject({ is_gift: false, gift_value: null })
+    expect(p.line_items[1]).toMatchObject({
+      is_gift: true,
+      gift_value: 79,
+      gift_for_line_id: "item_1",
+      gift_for_product_id: "prod_01H",
+      gift_for_title: "iPhone 15",
+      is_extended_warranty: false,
+      is_service_addon: false,
+      unit_price: 0,
+    })
+  })
 })

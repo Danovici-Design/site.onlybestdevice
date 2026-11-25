@@ -3,6 +3,7 @@ import { HttpTypes } from "@medusajs/types"
 import { SALE_BADGE_LABEL, isSaleProduct } from "./sale"
 import { SHOWROOM_BADGE_LABEL, isShowroomProduct } from "./showroom"
 import { SECOND_HAND_BADGE_LABEL, isSecondHandProduct } from "./second-hand"
+import { hasGift } from "./gifts"
 
 /**
  * Eticheta din colțul cardului de produs, sau `null` dacă produsul n-are una.
@@ -21,6 +22,9 @@ export const getProductBadge = (
   if (isShowroomProduct(product)) return SHOWROOM_BADGE_LABEL
   // Tot despre starea fizică: un telefon folosit trebuie să se vadă din listă.
   if (isSecondHandProduct(product)) return SECOND_HAND_BADGE_LABEL
+  // Cadoul e o ofertă activă, aleasă de mână din admin — bate „Nou" și
+  // „Reducere" (prețul tăiat se vede oricum sub poză).
+  if (hasGift(product)) return "Cadou inclus"
 
   const tags = (product.tags ?? []).map((t) => t.value?.toLowerCase() ?? "")
   if (tags.includes("new") || tags.includes("nuovo") || tags.includes("nou"))

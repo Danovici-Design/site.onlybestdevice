@@ -1,5 +1,6 @@
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { GIFT_FOR, GIFT_FOR_TITLE } from "../gifts"
 import { ADDON_FOR, ADDON_FOR_TITLE, SH_SERVICES_HANDLE } from "../second-hand"
 import { WARRANTY_HANDLE } from "../warranty-prices"
 import {
@@ -89,6 +90,16 @@ export type ErpLineItem = {
   addon_for_line_id: string | null
   addon_for_product_id: string | null
   addon_for_title: string | null
+  /**
+   * Linia e un cadou (bifa „Vine cu cadou" din admin): marfă reală, cu stoc
+   * care scade, dar vândută la 0 lei împreună cu produsul din linia
+   * `gift_for_line_id`. `gift_value` = cât ar fi costat separat.
+   */
+  is_gift: boolean
+  gift_value: number | null
+  gift_for_line_id: string | null
+  gift_for_product_id: string | null
+  gift_for_title: string | null
 }
 
 export type ErpCanonicalStatus =
@@ -316,6 +327,43 @@ const addonFields = (item: any, items: any[]) => {
   }
 }
 
+const giftTarget = (item: any): string | null =>
+  typeof item?.metadata?.[GIFT_FOR] === "string" && item.metadata[GIFT_FOR]
+    ? item.metadata[GIFT_FOR]
+    : null
+
+/** Câmpurile de cadou ale unei linii; nule pe restul. */
+const giftFields = (item: any, items: any[]) => {
+  const target = giftTarget(item)
+  if (!target) {
+    return {
+      is_gift: false,
+      gift_value: null,
+      gift_for_line_id: null,
+      gift_for_product_id: null,
+      gift_for_title: null,
+    }
+  }
+  const covered = items.find(
+    (i) =>
+      !giftTarget(i) &&
+      !isAddonItem(i) &&
+      !isWarrantyItem(i) &&
+      i.product_id === target
+  )
+  const value = Number(item.compare_at_unit_price)
+  return {
+    is_gift: true,
+    gift_value: Number.isFinite(value) && value > 0 ? value : null,
+    gift_for_line_id: covered?.id ?? null,
+    gift_for_product_id: target,
+    gift_for_title:
+      typeof item.metadata?.[GIFT_FOR_TITLE] === "string"
+        ? item.metadata[GIFT_FOR_TITLE]
+        : (covered?.product_title ?? null),
+  }
+}
+
 export const buildLineItems = (order: any): ErpLineItem[] =>
   (order?.items ?? []).map((item: any) => ({
     id: item.id,
@@ -333,6 +381,7 @@ export const buildLineItems = (order: any): ErpLineItem[] =>
     total: num(item.total),
     ...warrantyFields(item, order?.items ?? []),
     ...addonFields(item, order?.items ?? []),
+    ...giftFields(item, order?.items ?? []),
   }))
 
 export const toErpPayload = (order: any): ErpOrderPayload => ({
