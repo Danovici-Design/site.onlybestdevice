@@ -38,7 +38,7 @@ services:
       retries: 10
 
   backend:
-    image: ghcr.io/danovici03/site.onlybestdevice-backend:latest
+    image: ghcr.io/danovici-design/site.onlybestdevice-backend:latest
     # Dokploy deployează cu `docker compose up -d`, fără `--pull`. Fără linia de
     # mai jos, Docker vede că are deja local tag-ul `:latest`, nu mai întreabă
     # registry-ul și lasă containerul vechi în picioare — deploy-ul iese verde
