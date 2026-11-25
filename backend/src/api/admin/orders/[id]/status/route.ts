@@ -1,6 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
-import { completeOrderWorkflow } from "@medusajs/core-flows"
 import { z } from "zod"
 
 import { hasBankAccount } from "../../../../../lib/company/bank-account"
@@ -19,6 +18,7 @@ import {
 } from "../../../../../lib/orders/order-status"
 import { withComputedStatuses } from "../../../../../lib/orders/computed-status"
 import { cancelOrderFully } from "../../../../../lib/orders/cancel-order-fully"
+import { completeOrderFully } from "../../../../../lib/orders/complete-order-fully"
 
 const BodySchema = z.object({
   code: z.enum(ORDER_STATUS_CODES as [OrderStatusCode, ...OrderStatusCode[]]),
@@ -219,8 +219,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       return res.status(409).json({ message: "Comanda e deja finalizată." })
     }
     try {
-      await completeOrderWorkflow(req.scope).run({
-        input: { orderIds: [order.id] },
+      // Închide și livrarea (creată → expediată → livrată) și plata
+      // (capturată), nu doar comanda.
+      await completeOrderFully(req.scope, {
+        order_id: order.id,
+        actor_id: (req as any).auth_context?.actor_id,
       })
     } catch (e: any) {
       logger.error(`[status] Finalizarea comenzii ${order.id} a eșuat: ${e?.message}`)

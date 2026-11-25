@@ -386,9 +386,11 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
           <Prompt.Header>
             <Prompt.Title>Anulezi comanda?</Prompt.Title>
             <Prompt.Description>
-              Rezervările de stoc se eliberează, plățile în așteptare se
-              anulează, iar clientul primește automat emailul de anulare.
-              Acțiunea nu poate fi anulată.
+              Livrările se anulează și produsele intră înapoi în stoc (și la
+              un colet întors), plățile în așteptare se anulează, iar cele
+              încasate — inclusiv rambursul — se trec ca rambursate. Clientul
+              primește automat emailul de anulare. Acțiunea nu poate fi
+              anulată.
             </Prompt.Description>
           </Prompt.Header>
           <Prompt.Footer>
@@ -405,8 +407,11 @@ const OrderStatusWidget = ({ data: order }: DetailWidgetProps<AdminOrder>) => {
           <Prompt.Header>
             <Prompt.Title>Finalizezi comanda?</Prompt.Title>
             <Prompt.Description>
-              În gestiune, telefoanele rezervate trec pe vândut și se generează
-              garanțiile. Comanda nu mai poate fi readusă în lucru.
+              Livrarea se marchează expediată și livrată, plata (inclusiv
+              rambursul) se trece ca încasată, iar în gestiune telefoanele
+              rezervate trec pe vândut și se generează garanțiile. Comanda nu
+              mai poate fi readusă în lucru — dacă produsul se întoarce,
+              anuleaz-o.
             </Prompt.Description>
           </Prompt.Header>
           <Prompt.Footer>
