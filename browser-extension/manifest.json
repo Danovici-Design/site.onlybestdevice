@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "OBD – Import produs",
   "short_name": "OBD Import",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Citește pagina de produs a altui magazin din browserul tău și o trimite la importul din adminul Onlybestdevice.",
   "minimum_chrome_version": "116",
   "permissions": ["scripting", "tabs"],

@@ -25,13 +25,18 @@ La o versiune nouă: `git pull`, apoi butonul ↻ de pe cardul extensiei din
 - **Prin browser**: sare direct la extensie (util pentru site-urile care
   încarcă fișa sau galeria din JavaScript).
 
-Extensia deschide linkul într-un tab nou în fundal, așteaptă să se încarce,
-derulează pagina ca să încarce pozele „lazy”, copiază DOM-ul, închide tabul și
-te întoarce în admin. Durează cam 5–10 s.
+**Implicit nu se deschide niciun tab.** Extensia cere pagina direct, de pe IP-ul
+și cu cookie-urile tale, iar operatorul nu vede nimic. Pe eMAG durează sub o
+secundă și scoate aceleași 33 de specificații și 5 poze ca citirea din tab.
 
-Dacă magazinul cere **captcha** sau întoarce o pagină aproape goală, tabul
-devine vizibil și adminul îți spune să rezolvi verificarea. După ce o rezolvi,
-pagina se citește singură. Ai la dispoziție 3 minute.
+Tabul apare doar în două cazuri:
+
+- cererea directă dă de captcha sau de o pagină aproape goală. Tabul devine
+  vizibil și adminul îți spune să rezolvi verificarea. După ce o rezolvi,
+  pagina se citește singură și tabul se închide. Ai la dispoziție 3 minute;
+- apeși **Prin browser**: pagina se deschide într-un tab în fundal, se derulează
+  ca să încarce pozele „lazy”, se citește DOM-ul randat și tabul se închide
+  (~8 s). E pentru site-urile care își montează fișa sau galeria din JavaScript.
 
 ## Securitate
 
@@ -60,6 +65,6 @@ folosiți Chrome.
 | ----------------- | -------------------------------------------------------------------- |
 | `manifest.json`   | permisiuni: `scripting` și `tabs` pe orice site (pentru tabul citit)  |
 | `admin-bridge.js` | rulează în admin: marchează `<html data-obd-import-extension>` și duce mesajele |
-| `background.js`   | deschide tabul, așteaptă, citește, detectează captcha, închide tabul   |
+| `background.js`   | cererea directă; la nevoie tabul, citirea, captcha-ul, închiderea      |
 
 Partea din admin e `backend/src/admin/lib/browser-extension.ts`.

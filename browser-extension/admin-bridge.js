@@ -24,7 +24,7 @@
     const msg = event.data
     if (!msg || msg.source !== "obd-admin" || msg.type !== "capture") return
 
-    chrome.runtime.sendMessage({ type: "obd-capture", id: msg.id, url: msg.url }, (res) => {
+    chrome.runtime.sendMessage({ type: "obd-capture", id: msg.id, url: msg.url, render: !!msg.render }, (res) => {
       const err = chrome.runtime.lastError
       reply({
         type: "capture-result",

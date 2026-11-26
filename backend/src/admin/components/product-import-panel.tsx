@@ -89,14 +89,14 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
     if (!target) return
     setLoading(true)
 
-    const readInBrowser = async () => {
+    const readInBrowser = async (render = false) => {
       const page = await captureViaExtension(target, (stage) => {
         if (stage === "captcha") {
           toast.warning(
             "Magazinul cere o verificare. Rezolv-o în tabul deschis, iar pagina se citește singură după aceea."
           )
         }
-      })
+      }, render)
       return fetchPreview({ url: page.url, html: page.html, product_id: product.id })
     }
 
@@ -104,7 +104,7 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
       const pasted = showPaste && pastedHtml.trim() ? pastedHtml : undefined
       let data: ImportPreview
       if (!pasted && via === "browser") {
-        data = await readInBrowser()
+        data = await readInBrowser(true)
       } else {
         try {
           data = await fetchPreview({ url: target, html: pasted, product_id: product.id })
@@ -267,7 +267,8 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
         {extension && !showPaste && (
           <Text size="xsmall" className="text-ui-fg-muted">
             Extensia OBD e activă: dacă magazinul refuză serverul (eMAG), pagina se
-            citește automat într-un tab al tău, care se închide singur.
+            citește automat prin browserul tău. „Prin browser” o deschide într-un tab, pentru
+            site-urile care își încarcă fișa din JavaScript.
           </Text>
         )}
 

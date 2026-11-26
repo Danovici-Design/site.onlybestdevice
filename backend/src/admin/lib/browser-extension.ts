@@ -26,7 +26,13 @@ const TIMEOUT_MS = 5 * 60_000
 
 export function captureViaExtension(
   url: string,
-  onProgress?: (stage: CaptureStage) => void
+  onProgress?: (stage: CaptureStage) => void,
+  /**
+   * `true` = deschide pagina într-un tab și citește DOM-ul randat. Implicit
+   * extensia o cere direct, fără tab (operatorul nu vede nimic), și trece pe
+   * tab doar dacă cererea directă e blocată (captcha, pagină goală).
+   */
+  render = false
 ): Promise<CapturedPage> {
   if (!extensionVersion()) {
     return Promise.reject(new Error("Extensia OBD nu e instalată."))
@@ -64,6 +70,6 @@ export function captureViaExtension(
     }
 
     window.addEventListener("message", onMessage)
-    window.postMessage({ source: "obd-admin", type: "capture", id, url }, window.location.origin)
+    window.postMessage({ source: "obd-admin", type: "capture", id, url, render }, window.location.origin)
   })
 }

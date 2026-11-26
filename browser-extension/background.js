@@ -38,7 +38,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: false, error: "Cerere refuzată: nu vine din adminul Onlybestdevice." })
     return
   }
-  capture(msg.url, sender.tab, msg.id).then(sendResponse, (err) =>
+  capture(msg.url, sender.tab, msg.id, !!msg.render).then(sendResponse, (err) =>
     sendResponse({ ok: false, error: err?.message || String(err) })
   )
   return true // răspunsul vine asincron
@@ -100,7 +100,42 @@ async function readTab(tabId) {
   return result
 }
 
-async function capture(rawUrl, adminTab, id) {
+/** Textul vizibil aproximativ al unui HTML brut — doar pentru detecția de blocaj. */
+const roughText = (html) =>
+  html
+    .replace(/<(script|style|noscript|svg)\b[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+
+const BLOCK_WORDS =
+  /captcha|verify you are human|are you a robot|nu sunte(t|ț)i robot|access denied|just a moment|attention required|security check|verificare de securitate/i
+
+/**
+ * Prima încercare, fără niciun tab: cererea pleacă din extensie, de pe IP-ul
+ * și cu cookie-urile operatorului, deci eMAG o acceptă — și pagina brută are
+ * deja tot ce citesc adaptoarele (fișa, galeria, JSON-LD-ul). Operatorul nu
+ * vede nimic. `null` = n-a mers, trecem pe tab.
+ */
+async function fetchDirect(url) {
+  try {
+    const res = await fetch(url.href, {
+      credentials: "include",
+      redirect: "follow",
+      signal: AbortSignal.timeout(20_000),
+      headers: { Accept: "text/html,application/xhtml+xml" },
+    })
+    if (!res.ok || !/text\/html|xhtml/i.test(res.headers.get("content-type") || "")) return null
+    const html = await res.text()
+    const text = roughText(html)
+    if (text.length < 300 || (text.length < 8000 && BLOCK_WORDS.test(text.slice(0, 4000)))) return null
+    return { html, url: res.url || url.href }
+  } catch {
+    return null
+  }
+}
+
+async function capture(rawUrl, adminTab, id, render) {
   let url
   try {
     url = new URL(rawUrl)
@@ -113,6 +148,14 @@ async function capture(rawUrl, adminTab, id) {
 
   const progress = (stage) =>
     chrome.tabs.sendMessage(adminTab.id, { type: "obd-progress", id, stage }).catch(() => {})
+
+  // Fără tab, dacă se poate. `render` = operatorul a cerut explicit pagina
+  // randată („Prin browser"), pentru site-urile care montează fișa din JS.
+  if (!render) {
+    progress("loading")
+    const direct = await fetchDirect(url)
+    if (direct) return { ok: true, ...direct, title: "" }
+  }
 
   const tab = await chrome.tabs.create({
     url: url.href,

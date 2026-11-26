@@ -75,8 +75,9 @@ Singurul browser cu un IP acceptat e al operatorului, deci de acolo luăm pagina
 
 **Varianta principală e extensia Chrome** din `/browser-extension` (instalare
 în README-ul ei). Când e instalată, „Citește pagina” încearcă întâi serverul și,
-dacă magazinul îl refuză, deschide singur pagina într-un tab al operatorului, o
-citește și închide tabul. Captcha-ul îl rezolvă operatorul în tabul acela.
+dacă magazinul îl refuză, extensia cere pagina direct, de pe IP-ul operatorului,
+fără niciun tab vizibil. Doar la captcha deschide un tab, în care operatorul
+rezolvă verificarea.
 Ruta primește rezultatul ca `html`, exact ca la lipirea manuală. Testat pe
 eMAG: aceleași 33 de specificații și 5 poze ca la citirea de pe server.
 
