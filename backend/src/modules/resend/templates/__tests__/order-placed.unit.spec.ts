@@ -190,3 +190,61 @@ describe("emailurile de comandă plasată", () => {
     expect(admin).not.toContain("garantia-legala-ue-ro.png")
   })
 })
+
+describe("order-placed-customer — ordin de plată", () => {
+  const bankOrder = {
+    ...baseOrder,
+    payment_collections: [
+      { payment_sessions: [{ provider_id: "pp_system_default" }] },
+    ],
+  }
+  const saved = { ...process.env }
+
+  beforeEach(() => {
+    for (const k of Object.keys(process.env)) {
+      if (k.startsWith("BANK_")) delete process.env[k]
+    }
+  })
+
+  afterEach(() => {
+    process.env = { ...saved }
+  })
+
+  it("trimite IBAN-ul din prima confirmare, nu doar din emailul manual", () => {
+    process.env.BANK_IBAN = "RO49 AAAA 1B31 0075 9384 0000"
+    process.env.BANK_NAME = "Banca Test"
+    const html = render("order-placed-customer", { order: bankOrder })
+    expect(html).toContain("RO49AAAA1B31007593840000")
+    expect(html).toContain("Banca Test")
+    expect(html).toContain("Comanda #1234")
+  })
+
+  it("listează toate conturile configurate", () => {
+    process.env.BANK_IBAN = "RO92BTRLRONCRT0584073801"
+    process.env.BANK_NAME = "Banca Transilvania"
+    process.env.BANK_IBAN_2 = "RO15BRDE060SV53722470600"
+    process.env.BANK_NAME_2 = "BRD"
+    process.env.BANK_IBAN_3 = "RO19RZBR0000060031812947"
+    process.env.BANK_NAME_3 = "Raiffeisen Bank"
+    const html = render("order-placed-customer", { order: bankOrder })
+    for (const iban of [
+      "RO92BTRLRONCRT0584073801",
+      "RO15BRDE060SV53722470600",
+      "RO19RZBR0000060031812947",
+    ])
+      expect(html).toContain(iban)
+    expect(html).toContain(">BRD<")
+  })
+
+  it("fără BANK_IBAN nu afișează un bloc de cont gol", () => {
+    delete process.env.BANK_IBAN
+    const html = render("order-placed-customer", { order: bankOrder })
+    expect(html).not.toContain("Date pentru plată")
+  })
+
+  it("nu pune IBAN-ul pe comenzile cu altă metodă", () => {
+    process.env.BANK_IBAN = "RO49AAAA1B31007593840000"
+    const html = render("order-placed-customer", { order: codOrder })
+    expect(html).not.toContain("RO49AAAA1B31007593840000")
+  })
+})

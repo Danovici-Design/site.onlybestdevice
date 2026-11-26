@@ -1,7 +1,7 @@
 import { courierInfo } from "../../../lib/buyback/identity"
 import { SH_SERVICES_HANDLE } from "../../../lib/second-hand"
 import { WARRANTY_HANDLE } from "../../../lib/warranty-prices"
-import { bankAccount } from "../../../lib/company/bank-account"
+import { bankAccounts } from "../../../lib/company/bank-account"
 import {
   describeOrderPayment,
   paymentMethodText,
@@ -259,6 +259,10 @@ const renderOrderItems = (
 const isCodOrder = (order: Record<string, any>) =>
   describeOrderPayment(order)?.group === "cod"
 
+/** Ordin de plată (`pp_system_default`): clientul virează singur, pe IBAN. */
+const isBankTransferOrder = (order: Record<string, any>) =>
+  describeOrderPayment(order)?.group === "bank_transfer"
+
 /** Ridicarea din magazin e singura opțiune fără taxă de curier. */
 const isPickupOrder = (order: Record<string, any>) =>
   (order.shipping_methods ?? []).some((m: any) => /ridicare/i.test(m?.name ?? ""))
@@ -468,9 +472,18 @@ const orderPlacedCustomer: Renderer = ({ order, storefront_url }) => {
     pickup || !isCodOrder(order)
       ? ""
       : `<p style="margin:0 0 16px;font-size:13px;color:${COLOR.muted};">Plătești acest total curierului, la primirea coletului — produsele și livrarea, într-o singură sumă.</p>`
+  // Ordin de plată: clientul trebuie să afle din primul email unde plătește.
+  // Înainte, IBAN-ul pleca doar cu emailul de virament trimis manual din
+  // admin, iar până atunci clientul rămânea cu un „Mulțumim” și nimic altceva.
+  const bankTransfer = isBankTransferOrder(order)
+  const bankBlock = bankTransfer ? bankDetails(order) : ""
+  const intro = bankTransfer
+    ? `îți mulțumim pentru comanda <strong>#${escape(display)}</strong>. Am primit-o cu bine. Ai ales plata prin ordin de plată: transferă totalul într-unul din conturile de mai jos, cu numărul comenzii la detalii. Pregătim coletul imediat ce banii intră.`
+    : `îți mulțumim pentru comanda <strong>#${escape(display)}</strong>. Am primit-o cu bine și o pregătim.`
   const body = `
     ${greeting(firstName)}
-    <p style="margin:0 0 16px;">îți mulțumim pentru comanda <strong>#${escape(display)}</strong>. Am primit-o cu bine și o pregătim.</p>
+    <p style="margin:0 0 16px;">${intro}</p>
+    ${bankBlock}
     ${renderOrderItems(order.items, storefront_url)}
     ${renderOrderTotals(order)}
     ${courierNote}
@@ -942,18 +955,29 @@ const orderStatusChanged: Renderer = ({
  * gol e mai onest decât un tabel cu „IBAN:" urmat de nimic.
  */
 const bankDetails = (order: any) => {
-  const bank = bankAccount()
-  if (!bank) return ""
+  const accounts = bankAccounts()
+  if (!accounts.length) return ""
+
+  const mono = "font-family:ui-monospace,SFMono-Regular,Menlo,monospace;"
+  const rows = accounts
+    .map(
+      (bank, i) => `
+      <div style="${i ? `margin-top:12px;padding-top:12px;border-top:1px solid ${COLOR.border};` : ""}">
+        ${bank.name ? `<div><strong>${escape(bank.name)}</strong></div>` : ""}
+        <div><span style="${mono}">${escape(bank.iban)}</span></div>
+      </div>`
+    )
+    .join("")
 
   return `
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 20px;border:1px solid ${COLOR.border};border-radius:12px;background:${COLOR.light};">
     <tr><td style="padding:20px 24px;font-family:${FONT_BODY};font-size:14px;color:${COLOR.dark};line-height:1.7;">
       <div style="color:${COLOR.muted};font-size:12px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Date pentru plată</div>
-      <div><strong>Beneficiar:</strong> ${escape(bank.holder)}</div>
-      <div><strong>IBAN:</strong> <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">${escape(bank.iban)}</span></div>
-      ${bank.name ? `<div><strong>Banca:</strong> ${escape(bank.name)}</div>` : ""}
+      <div><strong>Beneficiar:</strong> ${escape(accounts[0].holder)}</div>
       <div><strong>Sumă:</strong> ${money(order?.total, order?.currency_code)}</div>
       <div><strong>Detalii plată:</strong> Comanda #${escape(order?.display_id ?? order?.id ?? "")}</div>
+      <div style="color:${COLOR.muted};font-size:12px;text-transform:uppercase;letter-spacing:0.06em;margin:16px 0 8px;">${accounts.length > 1 ? "Conturi IBAN — alege-l pe cel din banca ta, transferul intră mai repede" : "Cont IBAN"}</div>
+      ${rows}
     </td></tr>
   </table>`
 }
@@ -968,7 +992,7 @@ const orderBankTransfer: Renderer = ({ order, pay_url, note, storefront_url }) =
   const firstName = order?.shipping_address?.first_name
   const body = `
     ${greeting(firstName)}
-    <p style="margin:0 0 16px;">îți mulțumim pentru <strong>comanda #${escape(display)}</strong>. Așteptăm plata prin ordin de plată în contul de mai jos — pregătim coletul imediat ce banii intră.</p>
+    <p style="margin:0 0 16px;">îți mulțumim pentru <strong>comanda #${escape(display)}</strong>. Așteptăm plata prin ordin de plată într-unul din conturile de mai jos — pregătim coletul imediat ce banii intră.</p>
     ${bankDetails(order)}
     ${note ? `<p style="margin:0 0 12px;">${escape(String(note))}</p>` : ""}
     ${

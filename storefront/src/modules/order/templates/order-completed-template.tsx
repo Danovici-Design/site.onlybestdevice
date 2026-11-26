@@ -21,6 +21,9 @@ import {
 import { paymentCapturedAt, paymentLabelFor } from "@lib/util/payment-label"
 import Thumbnail from "@modules/products/components/thumbnail"
 import { invoiceUrlFor } from "@lib/util/invoice"
+import { isManual } from "@lib/constants"
+import { getBankAccounts } from "@lib/data/bank-account"
+import CopyButton from "@modules/order/components/copy-button"
 
 type OrderCompletedTemplateProps = {
   order: HttpTypes.StoreOrder
@@ -86,6 +89,10 @@ export default async function OrderCompletedTemplate({
   const payment = order.payment_collections?.[0]?.payments?.[0]
   const paymentTitle = paymentLabelFor(payment?.provider_id)
   const paidAt = paymentCapturedAt(payment)
+  // Ordin de plată neîncasat: clientul trebuie să afle aici unde virează.
+  // Altfel pleacă de pe pagină cu un „Mulțumim” și nicio indicație.
+  const awaitsTransfer = isManual(payment?.provider_id) && !paidAt
+  const banks = awaitsTransfer ? await getBankAccounts() : []
 
   return (
     <div className="bg-brand-light/40 py-10 small:py-16 min-h-[calc(100vh-64px)]">
@@ -184,6 +191,86 @@ export default async function OrderCompletedTemplate({
             </div>
           )}
         </header>
+
+        {awaitsTransfer && (
+          <section
+            className="rounded-3xl bg-white border-2 border-brand-accent/30 shadow-sm p-6 small:p-10"
+            data-testid="bank-transfer-details"
+          >
+            <h2 className="font-serif text-2xl small:text-3xl text-brand-dark tracking-tight">
+              Date pentru plata prin ordin de plată
+            </h2>
+            <p className="text-sm small:text-base text-brand-dark/70 mt-2">
+              Transferă totalul comenzii într-unul din conturile de mai jos și trece la
+              detalii numărul comenzii. Pregătim coletul imediat ce banii
+              intră. Între bănci diferite, transferul poate dura până la o zi
+              lucrătoare. Datele îți vin și pe email.
+            </p>
+            {banks.length ? (
+              <div className="mt-6 rounded-2xl bg-brand-light/60 border border-brand-dark/[0.06] p-5 small:p-6 text-sm">
+                <dl className="grid grid-cols-1 small:grid-cols-3 gap-x-8 gap-y-4">
+                  <div>
+                    <dt className="text-xs uppercase tracking-wider text-brand-dark/50">
+                      Beneficiar
+                    </dt>
+                    <dd className="text-brand-dark font-medium mt-1">
+                      {banks[0].holder}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wider text-brand-dark/50">
+                      Sumă de plată
+                    </dt>
+                    <dd className="text-brand-dark font-medium mt-1 tabular-nums">
+                      {money(order.total)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs uppercase tracking-wider text-brand-dark/50">
+                      Detalii plată
+                    </dt>
+                    <dd className="flex items-center gap-3 text-brand-dark font-medium mt-1">
+                      <span>Comanda #{order.display_id}</span>
+                      <CopyButton value={`Comanda #${order.display_id}`} />
+                    </dd>
+                  </div>
+                </dl>
+
+                <p className="text-xs uppercase tracking-wider text-brand-dark/50 mt-6 mb-2">
+                  {banks.length > 1
+                    ? "Conturi IBAN — alege-l pe cel din banca ta, transferul intră mai repede"
+                    : "Cont IBAN"}
+                </p>
+                <ul
+                  className="divide-y divide-brand-dark/[0.06] rounded-xl bg-white border border-brand-dark/[0.06]"
+                  data-testid="bank-accounts"
+                >
+                  {banks.map((bank) => (
+                    <li
+                      key={bank.iban}
+                      className="flex flex-col small:flex-row small:items-center gap-2 small:gap-6 px-4 py-3"
+                    >
+                      <span className="text-brand-dark font-medium small:w-44 shrink-0">
+                        {bank.name || "Cont bancar"}
+                      </span>
+                      <span
+                        className="flex-1 font-mono text-brand-dark break-all"
+                        data-testid="bank-iban"
+                      >
+                        {bank.iban.replace(/(.{4})/g, "$1 ").trim()}
+                      </span>
+                      <CopyButton value={bank.iban} label="Copiază IBAN" />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-brand-dark/70 mt-6 rounded-2xl bg-brand-light/60 border border-brand-dark/[0.06] p-5">
+                Îți trimitem datele contului pe email, la {order.email}.
+              </p>
+            )}
+          </section>
+        )}
 
         <div className="grid grid-cols-1 small:grid-cols-3 gap-6">
           <AccountCard
