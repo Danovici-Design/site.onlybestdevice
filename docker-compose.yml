@@ -179,6 +179,15 @@ services:
       PHONE_CATEGORY_HANDLE: ${PHONE_CATEGORY_HANDLE:-}
       #    Moneda impusă la trimiterea comenzilor spre ERP; gol = cea a comenzii.
       ERP_CURRENCY: ${ERP_CURRENCY:-}
+
+      # ── AI la importul de pe link (extragere + „Rescrie cu AI") ──
+      #    Gol = butonul de rescriere nu apare și extragerea rămâne doar pe
+      #    euristică. Ca la BANK_IBAN: pusă doar în Dokploy → Environment, cheia
+      #    nu ajunge în container fără linia de aici.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PRODUCT_IMPORT_AI: ${PRODUCT_IMPORT_AI:-}
+      PRODUCT_IMPORT_AI_MODEL: ${PRODUCT_IMPORT_AI_MODEL:-}
+      PRODUCT_IMPORT_AI_EFFORT: ${PRODUCT_IMPORT_AI_EFFORT:-}
     volumes:
       # Doar dacă NU folosești S3 — păstrează fișierele urcate la restart.
       - backend_static:/app/static
