@@ -27,8 +27,10 @@ import {
   applyImport,
   fetchPreview,
   PreviewError,
+  rewriteForSeo,
   type ImportPreview,
   type ImportedSpec,
+  type RewriteResult,
 } from "../lib/product-import"
 import { useOptionalQueryClient } from "../lib/use-optional-query-client"
 
@@ -73,6 +75,15 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
   const [specsMode, setSpecsMode] = useState<"merge" | "replace">("merge")
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
   const [setThumbnail, setSetThumbnail] = useState(false)
+
+  // Rescrierea pentru SEO: alternativa la descrierea originală. Cele două
+  // bife („Importă" la original, „Folosește rescrierea" aici) se exclud.
+  const [rewrite, setRewrite] = useState<RewriteResult | null>(null)
+  const [rewriting, setRewriting] = useState(false)
+  const [useRewrite, setUseRewrite] = useState(false)
+  const [takeSeo, setTakeSeo] = useState(false)
+  const [seoTitle, setSeoTitle] = useState("")
+  const [seoDescription, setSeoDescription] = useState("")
 
   // Se citește o dată: extensia marchează `<html>` înainte de pornirea
   // adminului, deci dacă lipsește acum, lipsește până la reîncărcare.
@@ -126,6 +137,11 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
       // lui, iar 12 poze adăugate din greșeală se scot una câte una.
       setSelectedImages(new Set())
       setSetThumbnail(false)
+      setRewrite(null)
+      setUseRewrite(false)
+      setTakeSeo(false)
+      setSeoTitle("")
+      setSeoDescription("")
       setOpen(true)
       setShowPaste(false)
     } catch (err) {
@@ -149,10 +165,46 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
     ).length
   }, [preview, selectedSpecs])
 
+  const runRewrite = useCallback(async () => {
+    if (!preview) return
+    setRewriting(true)
+    try {
+      const result = await rewriteForSeo({
+        title: preview.title || product.title,
+        brand: preview.brand,
+        description_html: preview.description.html,
+        // Fișa așa cum ar intra în produs: etichetele de casă, doar rândurile bifate.
+        specs: selectedSpecs.map((row) => ({ label: row.target.trim(), value: row.value })),
+      })
+      setRewrite(result)
+      setSeoTitle(result.seo_title)
+      setSeoDescription(result.seo_description)
+      // Cu cifre neverificate, operatorul trebuie să bifeze el, după ce citește.
+      const clean = !result.warnings.length
+      setUseRewrite(clean)
+      if (clean) setTakeDescription(false)
+      setTakeSeo(clean)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Rescrierea a eșuat")
+    } finally {
+      setRewriting(false)
+    }
+  }, [preview, product.title, selectedSpecs])
+
+  const descriptionToApply =
+    rewrite && useRewrite
+      ? rewrite.description_html
+      : takeDescription && preview?.description.html
+        ? preview.description.html
+        : undefined
+
+  const seoToApply =
+    rewrite && takeSeo && (seoTitle.trim() || seoDescription.trim())
+      ? { seo_title: seoTitle.trim(), seo_description: seoDescription.trim() }
+      : null
+
   const nothingSelected =
-    !(takeDescription && preview?.description.html) &&
-    !selectedSpecs.length &&
-    !selectedImages.size
+    !descriptionToApply && !seoToApply && !selectedSpecs.length && !selectedImages.size
 
   const apply = useCallback(async () => {
     if (!preview) return
@@ -164,9 +216,8 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
       const report = await applyImport({
         product_id: product.id,
         source_url: preview.url,
-        ...(takeDescription && preview.description.html
-          ? { description: preview.description.html }
-          : {}),
+        ...(descriptionToApply ? { description: descriptionToApply } : {}),
+        ...(seoToApply ?? {}),
         ...(Object.keys(specs).length ? { specs, specs_mode: specsMode } : {}),
         ...(selectedImages.size
           ? {
@@ -180,6 +231,7 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
         report.description_updated && "descrierea",
         report.specs_written ? `${report.specs_written} specificații` : null,
         report.images_added ? `${report.images_added} poze` : null,
+        report.seo_written ? "titlul și descrierea SEO" : null,
       ].filter(Boolean)
 
       toast.success(`Importat: ${done.join(", ") || "nimic"}.`)
@@ -201,14 +253,15 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
       setApplying(false)
     }
   }, [
+    descriptionToApply,
     preview,
     product.id,
     queryClient,
     selectedImages,
     selectedSpecs,
+    seoToApply,
     setThumbnail,
     specsMode,
-    takeDescription,
   ])
 
   return (
@@ -340,8 +393,30 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
                 <DescriptionSection
                   preview={preview}
                   checked={takeDescription}
-                  onChange={setTakeDescription}
+                  onChange={(v) => {
+                    setTakeDescription(v)
+                    if (v) setUseRewrite(false)
+                  }}
                 />
+
+                {preview.ai_available && (preview.description.html || specRows.length > 0) && (
+                  <RewriteSection
+                    result={rewrite}
+                    running={rewriting}
+                    onRun={() => void runRewrite()}
+                    useRewrite={useRewrite}
+                    onUseRewrite={(v) => {
+                      setUseRewrite(v)
+                      if (v) setTakeDescription(false)
+                    }}
+                    takeSeo={takeSeo}
+                    onTakeSeo={setTakeSeo}
+                    seoTitle={seoTitle}
+                    onSeoTitle={setSeoTitle}
+                    seoDescription={seoDescription}
+                    onSeoDescription={setSeoDescription}
+                  />
+                )}
 
                 <SpecsSection
                   preview={preview}
@@ -550,6 +625,157 @@ const DescriptionSection = ({
         Pozele din descriere se aduc în stocarea magazinului la import, ca să nu
         depindă de site-ul sursă.
       </Text>
+    </div>
+  )
+}
+
+/** Ce trimite storefront-ul (vezi `storefront/src/lib/util/seo.ts`). */
+const SEO_TITLE_MAX = 48
+const SEO_DESCRIPTION_RANGE = [120, 160] as const
+
+/**
+ * Rescrierea descrierii cu AI, ca textul să nu fie copia de pe eMAG.
+ *
+ * Nimic nu e bifat din start dacă serverul a găsit cifre care nu apar în
+ * sursă: atunci operatorul citește textul și decide. Titlul și meta descrierea
+ * se pot corecta de mână înainte de import.
+ */
+const RewriteSection = ({
+  result,
+  running,
+  onRun,
+  useRewrite,
+  onUseRewrite,
+  takeSeo,
+  onTakeSeo,
+  seoTitle,
+  onSeoTitle,
+  seoDescription,
+  onSeoDescription,
+}: {
+  result: RewriteResult | null
+  running: boolean
+  onRun: () => void
+  useRewrite: boolean
+  onUseRewrite: (v: boolean) => void
+  takeSeo: boolean
+  onTakeSeo: (v: boolean) => void
+  seoTitle: string
+  onSeoTitle: (v: string) => void
+  seoDescription: string
+  onSeoDescription: (v: string) => void
+}) => {
+  const titleLen = seoTitle.trim().length
+  const descLen = seoDescription.trim().length
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border p-4">
+      <SectionHeader
+        title="Rescrie pentru SEO"
+        hint="Text propriu în română, din aceleași fapte, ca Google să nu-l vadă drept copia de pe alt site. Plus titlul și meta descrierea paginii."
+        right={
+          <Button size="small" variant="secondary" isLoading={running} onClick={onRun}>
+            {result ? "Rescrie din nou" : "Rescrie cu AI"}
+          </Button>
+        }
+      />
+
+      {running && (
+        <Text size="small" className="text-ui-fg-muted">
+          Durează de obicei 30–90 de secunde.
+        </Text>
+      )}
+
+      {result && (
+        <>
+          {result.warnings.map((w) => (
+            <Alert key={w} variant="error">
+              {w}
+            </Alert>
+          ))}
+          {result.notes.length > 0 && (
+            <ul className="text-ui-fg-muted list-disc pl-5 text-xs">
+              {result.notes.map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+            </ul>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="import-rewrite"
+              checked={useRewrite}
+              onCheckedChange={(v) => onUseRewrite(v === true)}
+            />
+            <Label htmlFor="import-rewrite">Importă descrierea rescrisă în locul originalului</Label>
+          </div>
+
+          <div
+            className={clx(
+              "max-h-80 overflow-y-auto rounded-md border p-3 text-ui-fg-subtle",
+              "[&_p]:my-1 [&_p]:text-sm",
+              "[&_h2]:mb-1 [&_h2]:mt-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-ui-fg-base",
+              "[&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-ui-fg-base",
+              "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:text-sm",
+              "[&_figure]:my-2 [&_img]:max-h-32 [&_img]:w-auto [&_img]:rounded-md"
+            )}
+            // Sanitizat pe server cu `sanitizeWooHtml`, ca orice descriere.
+            dangerouslySetInnerHTML={{ __html: result.description_html }}
+          />
+
+          <div className="flex items-center gap-2 pt-2">
+            <Checkbox
+              id="import-seo"
+              checked={takeSeo}
+              onCheckedChange={(v) => onTakeSeo(v === true)}
+            />
+            <Label htmlFor="import-seo">Scrie titlul și meta descrierea pentru Google</Label>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="import-seo-title" size="small">
+              Titlu SEO{" "}
+              <span className={clx(titleLen > SEO_TITLE_MAX ? "text-ui-fg-error" : "text-ui-fg-muted")}>
+                ({titleLen}/{SEO_TITLE_MAX})
+              </span>
+            </Label>
+            <Input
+              id="import-seo-title"
+              value={seoTitle}
+              onChange={(e) => onSeoTitle(e.target.value)}
+            />
+            <Text size="xsmall" className="text-ui-fg-muted">
+              Pe site apare urmat de „| Onlybestdevice”.
+            </Text>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="import-seo-description" size="small">
+              Meta descriere{" "}
+              <span
+                className={clx(
+                  descLen < SEO_DESCRIPTION_RANGE[0] || descLen > SEO_DESCRIPTION_RANGE[1]
+                    ? "text-ui-fg-error"
+                    : "text-ui-fg-muted"
+                )}
+              >
+                ({descLen}, ținta {SEO_DESCRIPTION_RANGE.join("–")})
+              </span>
+            </Label>
+            <Textarea
+              id="import-seo-description"
+              rows={3}
+              value={seoDescription}
+              onChange={(e) => onSeoDescription(e.target.value)}
+            />
+          </div>
+
+          <Text size="xsmall" className="text-ui-fg-muted">
+            {result.model} · {result.usage.input_tokens.toLocaleString("ro-RO")} +{" "}
+            {result.usage.output_tokens.toLocaleString("ro-RO")} tokeni
+          </Text>
+        </>
+      )}
     </div>
   )
 }

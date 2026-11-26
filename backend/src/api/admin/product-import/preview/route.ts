@@ -172,6 +172,8 @@ export const POST = async (req: MedusaRequest<Body>, res: MedusaResponse) => {
       .map((entry) => entry.label),
     current,
     ai,
+    // Modalul arată butonul „Rescrie pentru SEO" doar când modelul e configurat.
+    ai_available: aiExtractionEnabled(),
     notes: extracted.notes,
   })
 }

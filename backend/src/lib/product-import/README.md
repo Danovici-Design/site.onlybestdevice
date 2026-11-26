@@ -34,6 +34,7 @@ din Admin; un scraper în Laravel ar fi trebuit să le rescrie pe toate.
 | `sources/generic.ts`| OpenGraph + euristici, pentru site-urile fără adaptor                 |
 | `fetch-page.ts`     | aducerea paginii, cu apărare împotriva adreselor interne             |
 | `ai.ts`             | extragerea cu model, pentru paginile pe care euristica le ratează    |
+| `rewrite.ts`        | rescrierea descrierii pentru SEO, cu titlu și meta descriere          |
 | `rehost.ts`         | descărcarea pozelor și urcarea lor în stocarea noastră               |
 | `index.ts`          | contopește cele trei surse și sanitizează descrierea                 |
 
@@ -102,7 +103,7 @@ model. Pe o pagină eMAG obișnuită nu se ajunge (adaptorul dă 23 de specifica
 exact pe site-urile pentru care altfel ar fi trebuit scris un adaptor nou.
 
 Se activează punând `ANTHROPIC_API_KEY` în env. Fără cheie, ruta se comportă
-identic cu varianta de dinainte. Model implicit `claude-opus-5`, schimbabil cu
+identic cu varianta de dinainte. Model implicit `claude-opus-5-5`, schimbabil cu
 `PRODUCT_IMPORT_AI_MODEL`; `PRODUCT_IMPORT_AI=off` îl oprește fără să scoți
 cheia.
 
@@ -145,6 +146,29 @@ Arată ce scoate euristica singură, dacă pragurile cheamă modelul, ce a adău
 el, câți tokeni a costat și ce i s-a aruncat la verificare. `HTML=./pagina.html`
 pentru site-urile care refuză serverul, `FORCE=1` ca să vezi modelul lucrând
 chiar și pe o pagină pe care euristica o acoperă.
+
+## Rescrierea pentru SEO
+
+Descrierea copiată de pe eMAG e același text pe zeci de site-uri, iar Google
+arată o singură copie, de obicei pe eMAG. În modal, „Rescrie cu AI”
+(`POST /admin/product-import/rewrite`, `rewrite.ts`) scrie un text propriu în
+română din aceleași fapte, plus `metadata.seo_title` și
+`metadata.seo_description`, pe care le citește deja storefront-ul
+(`storefront/src/lib/util/seo.ts`). Ruta nu scrie nimic; scrierea rămâne a lui
+`apply`, după bifă.
+
+Aici modelul compune, deci verificarea nu mai e „fraza există în pagină”, ci
+pe fapte:
+
+| Ce                 | Cum se verifică                                                     |
+| ------------------ | ------------------------------------------------------------------- |
+| cifrele            | fiecare număr din text, titlu și meta trebuie să existe în sursă (descriere + fișa bifată + titlu). Altfel apare un avertisment roșu și **nimic nu e bifat din start** |
+| pozele             | modelul vede jetoane `IMG_n`, nu URL-uri; le punem noi la loc, iar cele inventate dispar |
+| cât e copiat       | peste 30% propoziții lungi identice cu sursa ⇒ notă                  |
+| lungimile SEO      | titlu ≤ 48 (plus „ | Onlybestdevice”), meta 120–160 ⇒ notă, editabile în modal |
+
+Butonul apare doar când `ANTHROPIC_API_KEY` e setat (`ai_available` din preview).
+Același model ca la extragere (`PRODUCT_IMPORT_AI_MODEL`).
 
 ## Adăugarea unui magazin nou
 

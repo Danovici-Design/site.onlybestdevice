@@ -29,8 +29,11 @@ import Anthropic from "@anthropic-ai/sdk"
 import { htmlToText } from "../woo-description"
 import type { SpecPair } from "./specs"
 
-/** Implicit Opus 5. Se schimbă din env fără atins codul (ex. `claude-haiku-4-5`). */
-const DEFAULT_MODEL = "claude-opus-5"
+/**
+ * Implicit Opus 5.5. Se schimbă din env fără atins codul
+ * (`PRODUCT_IMPORT_AI_MODEL=claude-sonnet-5-5` costă jumătate).
+ */
+export const DEFAULT_MODEL = "claude-opus-5-5"
 
 /**
  * Peste atât, HTML-ul curățat nu mai încape rezonabil într-o cerere.
@@ -44,7 +47,7 @@ const MAX_HTML_CHARS = 600_000
 /**
  * Bugetul de ieșire.
  *
- * Generos pentru că pe Opus 5 gândirea se scade din același buget: o fișă de 30
+ * Generos pentru că pe Opus 5.5 gândirea se scade din același buget: o fișă de 30
  * de rânduri plus descrierea, pornite după o gândire lungă, ar atinge un plafon
  * mic, iar răspunsul s-ar opri la jumătatea JSON-ului. Cererea e oricum pe
  * stream, deci un plafon mare nu riscă timeout de HTTP.

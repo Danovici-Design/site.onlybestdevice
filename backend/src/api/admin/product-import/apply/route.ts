@@ -37,6 +37,9 @@ type Body = {
   images?: string[]
   /** Pune prima poză importată ca imagine principală. */
   set_thumbnail?: boolean
+  /** Titlul și meta descrierea pentru Google (`metadata.seo_*`, citite de storefront). */
+  seo_title?: string | null
+  seo_description?: string | null
 }
 
 const MAX_IMAGES = 24
@@ -89,6 +92,7 @@ export const POST = async (req: MedusaRequest<Body>, res: MedusaResponse) => {
     specs_written: 0,
     images_added: 0,
     thumbnail_set: false,
+    seo_written: false,
     failures,
   }
 
@@ -111,6 +115,17 @@ export const POST = async (req: MedusaRequest<Body>, res: MedusaResponse) => {
     // rămân neatinse — trimitem doar cheia `specs`.
     update.metadata = { specs }
     report.specs_written = Object.keys(specs).length
+  }
+
+  // Tot prin merge-ul pe chei al Medusei: trimitem doar cheile SEO, lângă
+  // `specs` dacă a venit și fișa. Gol = nu atingem (nu ștergem un titlu pus
+  // de mână din greșeală).
+  const seo: Record<string, string> = {}
+  if (body.seo_title?.trim()) seo.seo_title = body.seo_title.trim()
+  if (body.seo_description?.trim()) seo.seo_description = body.seo_description.trim()
+  if (Object.keys(seo).length) {
+    update.metadata = { ...((update.metadata as Record<string, unknown>) ?? {}), ...seo }
+    report.seo_written = true
   }
 
   const rehostedGallery = galleryUrls.map((url) => map.get(url)).filter((u): u is string => !!u)
@@ -142,6 +157,7 @@ export const POST = async (req: MedusaRequest<Body>, res: MedusaResponse) => {
     `[product-import] ${product.id}: ` +
       `descriere ${report.description_updated ? "scrisă" : "neatinsă"}, ` +
       `${report.specs_written} specificații, ${report.images_added} poze noi, ` +
+      `SEO ${report.seo_written ? "scris" : "neatins"}, ` +
       `${failures.length} poze ratate.`
   )
 

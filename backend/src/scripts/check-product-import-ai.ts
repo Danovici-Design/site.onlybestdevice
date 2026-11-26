@@ -26,6 +26,8 @@ import { fetchPage } from "../lib/product-import/fetch-page"
 
 /** Prețuri de listă, $/1M tokeni. Doar pentru estimarea afișată aici. */
 const PRICES: Record<string, { input: number; output: number }> = {
+  "claude-opus-5-5": { input: 4, output: 20 },
+  "claude-sonnet-5-5": { input: 2, output: 10 },
   "claude-opus-5": { input: 5, output: 25 },
   "claude-sonnet-5": { input: 2, output: 10 },
   "claude-haiku-4-5": { input: 1, output: 5 },

@@ -94,6 +94,13 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: '8mb' },
     },
     {
+      // Descrierea din previzualizare (eMAG: ~17 KB plus zeci de taguri <img>)
+      // trece ușor de plafonul implicit de 100 KB.
+      matcher: '/admin/product-import/rewrite',
+      methods: ['POST'],
+      bodyParser: { sizeLimit: '2mb' },
+    },
+    {
       // Intenționat FĂRĂ `methods`: asta îl pune în bucketul `global` al
       // sorterului, singurul care rulează înaintea bucketului `static`. Cu
       // `methods: ['GET']` ar ajunge în `static`, lângă `validateAndTransformQuery`
