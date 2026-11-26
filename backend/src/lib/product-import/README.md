@@ -72,7 +72,19 @@ cu aceleași antete, întoarce 200 de pe un laptop. Nu există antet care să
 rezolve asta.
 
 Singurul browser cu un IP acceptat e al operatorului, deci de acolo luăm pagina.
-Widgetul oferă un **bookmarklet** (`src/admin/lib/page-source-bookmarklet.ts`):
+
+**Varianta principală e extensia Chrome** din `/browser-extension` (instalare
+în README-ul ei). Când e instalată, „Citește pagina” încearcă întâi serverul și,
+dacă magazinul îl refuză, deschide singur pagina într-un tab al operatorului, o
+citește și închide tabul. Captcha-ul îl rezolvă operatorul în tabul acela.
+Ruta primește rezultatul ca `html`, exact ca la lipirea manuală. Testat pe
+eMAG: aceleași 33 de specificații și 5 poze ca la citirea de pe server.
+
+Chrome-ul headless primește de la eMAG un „410 Gone” de 400 de octeți, deci un
+browser headless pe server n-ar rezolva problema chiar dacă IP-ul ar fi
+acceptat.
+
+Fără extensie, widgetul oferă în continuare un **bookmarklet** (`src/admin/lib/page-source-bookmarklet.ts`):
 se trage o dată în bara de favorite, apoi un click pe pagina magazinului copiază
 sursa în clipboard, de unde se lipește în modal. Copiază DOM-ul viu, nu sursa
 brută — deci și galeria montată de JavaScript, pe care Cmd+U n-o conține.

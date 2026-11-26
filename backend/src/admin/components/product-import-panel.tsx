@@ -22,6 +22,7 @@ import {
   PAGE_SOURCE_BOOKMARKLET,
   PAGE_SOURCE_BOOKMARKLET_TITLE,
 } from "../lib/page-source-bookmarklet"
+import { captureViaExtension, extensionVersion } from "../lib/browser-extension"
 import {
   applyImport,
   fetchPreview,
@@ -73,15 +74,48 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set())
   const [setThumbnail, setSetThumbnail] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!url.trim()) return
+  // Se citește o dată: extensia marchează `<html>` înainte de pornirea
+  // adminului, deci dacă lipsește acum, lipsește până la reîncărcare.
+  const [extension] = useState(extensionVersion)
+
+  /**
+   * `via: "browser"` sare direct la extensie. Altfel încercăm întâi serverul
+   * (gratis, fără tab nou), iar dacă magazinul îl refuză și extensia e
+   * instalată, citim pagina prin browserul operatorului fără să-l mai punem
+   * să lipească ceva.
+   */
+  const load = useCallback(async (via: "auto" | "browser" = "auto") => {
+    const target = url.trim()
+    if (!target) return
     setLoading(true)
-    try {
-      const data = await fetchPreview({
-        url: url.trim(),
-        html: showPaste && pastedHtml.trim() ? pastedHtml : undefined,
-        product_id: product.id,
+
+    const readInBrowser = async () => {
+      const page = await captureViaExtension(target, (stage) => {
+        if (stage === "captcha") {
+          toast.warning(
+            "Magazinul cere o verificare. Rezolv-o în tabul deschis, iar pagina se citește singură după aceea."
+          )
+        }
       })
+      return fetchPreview({ url: page.url, html: page.html, product_id: product.id })
+    }
+
+    try {
+      const pasted = showPaste && pastedHtml.trim() ? pastedHtml : undefined
+      let data: ImportPreview
+      if (!pasted && via === "browser") {
+        data = await readInBrowser()
+      } else {
+        try {
+          data = await fetchPreview({ url: target, html: pasted, product_id: product.id })
+        } catch (err) {
+          if (pasted || !(err instanceof PreviewError) || !err.canPasteHtml || !extensionVersion()) {
+            throw err
+          }
+          toast.info("Serverul n-a putut citi pagina. O citesc prin browserul tău.")
+          data = await readInBrowser()
+        }
+      }
       setPreview(data)
       setTakeDescription(!!data.description.html)
       setSpecRows(
@@ -97,7 +131,7 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Eroare necunoscută"
       toast.error(message)
-      if (err instanceof PreviewError && err.canPasteHtml) setShowPaste(true)
+      if (err instanceof PreviewError && err.canPasteHtml && !extensionVersion()) setShowPaste(true)
     } finally {
       setLoading(false)
     }
@@ -217,9 +251,27 @@ const ProductImportPanel = ({ product }: { product: AdminProduct }) => {
           >
             Citește pagina
           </Button>
+          {extension && (
+            <Button
+              size="small"
+              variant="transparent"
+              isLoading={loading}
+              disabled={!url.trim()}
+              onClick={() => void load("browser")}
+            >
+              Prin browser
+            </Button>
+          )}
         </div>
 
-        {!showPaste && (
+        {extension && !showPaste && (
+          <Text size="xsmall" className="text-ui-fg-muted">
+            Extensia OBD e activă: dacă magazinul refuză serverul (eMAG), pagina se
+            citește automat într-un tab al tău, care se închide singur.
+          </Text>
+        )}
+
+        {!extension && !showPaste && (
           <button
             type="button"
             className="text-ui-fg-muted hover:text-ui-fg-subtle self-start text-xs underline"
@@ -370,7 +422,9 @@ const BookmarkletHelp = () => (
       </div>
 
       <Text size="xsmall" className="text-ui-fg-muted">
-        Nu ai bara de favorite? Cmd+Shift+B o arată. Varianta manuală merge în
+        Mai simplu: instalează extensia Chrome „OBD – Import produs” (folderul
+        browser-extension din repo). Cu ea pagina se citește singură, fără copiat
+        și lipit. Nu ai bara de favorite? Cmd+Shift+B o arată. Varianta manuală merge în
         continuare: Cmd+U pe pagină, apoi copiază tot.
       </Text>
     </div>

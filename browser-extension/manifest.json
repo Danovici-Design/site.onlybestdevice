@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "OBD – Import produs",
+  "short_name": "OBD Import",
+  "version": "1.0.0",
+  "description": "Citește pagina de produs a altui magazin din browserul tău și o trimite la importul din adminul Onlybestdevice.",
+  "minimum_chrome_version": "116",
+  "permissions": ["scripting", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://api.onlybestdevice.ro/app/*", "http://localhost/app/*"],
+      "js": ["admin-bridge.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
